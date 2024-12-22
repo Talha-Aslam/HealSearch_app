@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:my_project/chatBot.dart';
 
 import 'package:my_project/data.dart';
 import 'package:my_project/login_screen.dart';
 import 'package:my_project/profile.dart';
-import 'package:my_project/search_screen.dart';
 // import 'package:share_plus/share_plus.dart';
 
 class Navbar extends StatelessWidget {
@@ -62,6 +62,22 @@ class Navbar extends StatelessWidget {
           // ignore: avoid_returning_null_for_void
         ),
         ListTile(
+          leading: const Icon(Icons.assessment_rounded, size: 30),
+          onTap: () {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (BuildContext context) {
+              return const ChatBot();
+            }));
+          },
+          title: const Text(
+            'AI ChatBot',
+            style: TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.normal,
+                fontSize: 22),
+          ),
+        ),
+        ListTile(
           leading: const Icon(Icons.person, size: 30),
           onTap: () {
             Navigator.push(context,
@@ -93,45 +109,54 @@ class Navbar extends StatelessWidget {
                 fontSize: 22),
           ),
         ),
-        // const ListTile(
-        //   leading: Icon(Icons.contact_mail, size: 30),
-        //   title: Text(
-        //     'Contact Us',
-        //     style: TextStyle(
-        //         color: Colors.grey,
-        //         fontWeight: FontWeight.normal,
-        //         fontSize: 22),
-        //   ),
-        // ),
-        // ListTile(
-        //   leading: Icon(Icons.share, size: 30),
-        //   onTap: () {
-        //     var url = "https://www.google.com/";
-        //     // Share plugin
-        //     // Share.share('check out my website https://example.com');
-        //     // Share.share(
-        //     //     'Check Out our Search a Holic Application, Now you can search anything here 😎 https://example.com',
-        //     //     subject: 'Search a Holic Application Download Now!!');
-        //   },
-        //   title: const Text(
-        //     'Share',
-        //     style: TextStyle(
-        //         color: Colors.grey,
-        //         fontWeight: FontWeight.normal,
-        //         fontSize: 22),
-        //   ),
-        // ),
+        ListTile(
+          leading: const Icon(Icons.contact_mail, size: 30),
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: const Text('Contact Us'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.contact_mail, size: 50, color: Colors.blue),
+                      SizedBox(height: 10),
+                      Text('HealSearch Developers'),
+                      Text('Email: talha@student.uol.edu.pk'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      child: const Text('Thanks'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+          title: Text(
+            'Contact Us',
+            style: TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.normal,
+                fontSize: 22),
+          ),
+        ),
         const Divider(),
         ListTile(
           leading: const Icon(Icons.exit_to_app, size: 30),
           onTap: () {
-            Navigator.push(context,
+            Navigator.pushAndRemoveUntil(context,
                 MaterialPageRoute(builder: (BuildContext context) {
-              return const Search();
-            }));
+              return const Login();
+            }), (Route<dynamic> route) => false);
           },
           title: const Text(
-            'Exit',
+            'Logout',
             style: TextStyle(
                 color: Colors.grey,
                 fontWeight: FontWeight.normal,

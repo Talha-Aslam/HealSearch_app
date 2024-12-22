@@ -60,6 +60,7 @@ dependencies:
   path_provider: ^2.0.14
   flutter_switch: ^0.3.2
   switch_up: ^0.0.2+1
+  google_sign_in: ^5.0.7
 
 animated_splash_screen:
 

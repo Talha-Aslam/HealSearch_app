@@ -374,19 +374,6 @@ class _RegistrationState extends State<Registration> {
                   ),
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(top: 110.0, left: 02),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image(image: AssetImage("images/logo4.png"), width: 170),
-                      SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
               Padding(
                 padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).viewInsets.bottom),
