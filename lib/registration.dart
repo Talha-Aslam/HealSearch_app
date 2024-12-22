@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_pw_validator/Utilities/Validator.dart';
 import 'package:my_project/login_screen.dart';
 import 'package:rounded_loading_button/rounded_loading_button.dart';
 import 'package:flutter/gestures.dart';
@@ -322,8 +321,6 @@ class _RegistrationState extends State<Registration> {
                                 MaterialPageRoute(
                                     builder: (context) => const Login()),
                               );
-                            } else if (Validator == null) {
-                              onClickFun2(_btnController);
                             } else {
                               onClickFun2(_btnController);
                             }

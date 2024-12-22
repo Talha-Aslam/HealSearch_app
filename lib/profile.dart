@@ -5,12 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:my_project/data.dart';
 import 'package:my_project/login_screen.dart';
 import 'package:firedart/firedart.dart';
-
-void main() {
-  runApp(const MaterialApp(
-    home: Profile(),
-  ));
-}
+import 'package:my_project/showProfile.dart';
+import 'package:my_project/updateProfile.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -134,7 +130,11 @@ class _ProfileState extends State<Profile> {
                       children: [
                         ElevatedButton.icon(
                           onPressed: () {
-                            // Show Profile functionality
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const ShowProfile()),
+                            );
                           },
                           icon: const Icon(Icons.person, color: Colors.white),
                           label: const Text('Show Profile'),
@@ -152,7 +152,11 @@ class _ProfileState extends State<Profile> {
                         const SizedBox(height: 20),
                         ElevatedButton.icon(
                           onPressed: () {
-                            // Update Profile functionality
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const UpdateProfile()),
+                            );
                           },
                           icon: const Icon(Icons.edit, color: Colors.white),
                           label: const Text('Update Profile'),
@@ -170,7 +174,44 @@ class _ProfileState extends State<Profile> {
                         const SizedBox(height: 20),
                         ElevatedButton.icon(
                           onPressed: () {
-                            // Delete Profile functionality
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text("Delete Profile"),
+                                  content: const Text(
+                                      "Are you sure you want to delete your profile?"),
+                                  actions: [
+                                    TextButton(
+                                      child: const Text("Cancel"),
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                    ),
+                                    TextButton(
+                                      child: const Text("Yes"),
+                                      onPressed: () async {
+                                        // Add your delete profile functionality here
+                                        if (appData.Email !=
+                                            "You are not logged in") {
+                                          var data = Firestore.instance
+                                              .collection("appData");
+                                          await data
+                                              .document(appData.Email)
+                                              .delete();
+                                          setState(() {
+                                            appData.isLoggedIn = false;
+                                            appData.Email =
+                                                "You are not logged in";
+                                          });
+                                        }
+                                        Navigator.of(context).pop();
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
                           },
                           icon: const Icon(Icons.delete, color: Colors.white),
                           label: const Text('Delete Profile'),

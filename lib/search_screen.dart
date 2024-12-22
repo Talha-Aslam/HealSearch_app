@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:my_project/firebase_database.dart';
-import 'package:my_project/card.dart';
 import 'package:my_project/navbar.dart';
-// import 'package:flutter_switch/flutter_switch.dart';
-// import 'package:toggle_switch/toggle_switch.dart';
+
+void main() {
+  runApp(const MaterialApp(
+    home: Search(),
+  ));
+}
 
 class Search extends StatefulWidget {
   const Search({super.key});
@@ -41,7 +44,6 @@ class _SearchState extends State<Search> {
         onRefresh: () async {
           await setProducts();
         },
-        //commiting again
         child: Scaffold(
           key: _scaffoldKey,
           drawer: const Navbar(),
@@ -57,7 +59,14 @@ class _SearchState extends State<Search> {
                 height: 230,
                 width: MediaQuery.of(context).size.width * 1,
                 decoration: const BoxDecoration(
-                    color: Colors.blue,
+                    gradient: LinearGradient(
+                      colors: [
+                        Color.fromARGB(255, 190, 82, 15),
+                        Color.fromARGB(188, 255, 140, 0),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(40.0),
                         bottomRight: Radius.circular(40.0))),
@@ -66,56 +75,16 @@ class _SearchState extends State<Search> {
                     Padding(
                       padding: const EdgeInsets.only(top: 22.0),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: GestureDetector(
                                   onTap: () {
                                     _scaffoldKey.currentState!.openDrawer();
-
-                                    // drwaer element
                                   },
                                   child: const Icon(Icons.menu_open_sharp,
                                       size: 35, color: Colors.white))),
-                          Padding(
-                            padding: const EdgeInsets.all(1.0),
-                            child: PopupMenuButton(
-                              icon: const Icon(Icons.more_horiz,
-                                  size: 25, color: Colors.white),
-                              itemBuilder: (context) => [
-                                // PopupMenuItem(
-                                //   child: Text("Help ?"),
-                                //   onTap: () {
-                                //     showDialog(
-                                //       context: context,
-                                //       builder: (BuildContext context) {
-                                //         return StatefulBuilder(
-                                //           builder: (BuildContext context,
-                                //               StateSetter setState) {
-                                //             return AlertDialog(
-                                //               title: const Text("Help"),
-                                //               content: const Text(
-                                //                   "This is a help dialog box"),
-                                //               actions: [
-                                //                 TextButton(
-                                //                   onPressed: () {
-                                //                     Navigator.of(context).pop();
-                                //                   },
-                                //                   child: const Text("Close"),
-                                //                 ),
-                                //               ],
-                                //             );
-                                //           },
-                                //         );
-                                //       },
-                                //     );
-                                //   },
-                                //   value: 1,
-                                // ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -148,8 +117,6 @@ class _SearchState extends State<Search> {
                         onSubmitted: (value) {},
                         onChanged: (value) {
                           // Filtering the Products
-                          // ignore: avoid_print
-                          print(value);
                           setState(() {
                             if (value == "" && status == 0) {
                               searchedProducts = allProducts;
@@ -164,7 +131,6 @@ class _SearchState extends State<Search> {
                             }
                           });
                         },
-                        //controller: email,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search),
                           suffixIcon: IconButton(
@@ -183,10 +149,8 @@ class _SearchState extends State<Search> {
                     ),
                   ],
                 )),
-
             Padding(
               padding: const EdgeInsets.only(top: 235.0, left: 35),
-              // ignore: avoid_unnecessary_containers
               child: Container(
                   child: const Text(
                 "Search Results",
@@ -196,104 +160,18 @@ class _SearchState extends State<Search> {
                     fontSize: 22),
               )),
             ),
-
-            // Location Left Side icon and Text with Current Location
             Padding(
-                padding: const EdgeInsets.only(top: 259.0, left: 30),
-                child: SizedBox(
-                  child: Row(
-                    // ignore: prefer_const_literals_to_create_immutables
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        color: Colors.black,
-                        size: 20,
-                      ),
-                      const SizedBox(
-                        width: 5,
-                      ),
-                      Text(
-                        fullAddress,
-                        style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16),
-                      ),
-                    ],
-                  ),
-                )),
-
-            const Padding(
-              padding: EdgeInsets.only(top: 85, left: 280),
-              child: CircleAvatar(
-                maxRadius: 25,
-                minRadius: 25,
-                backgroundColor: Colors.white,
-                backgroundImage: AssetImage("images/man.png"),
-              ),
-            ),
-            // Padding(
-            //   padding: const EdgeInsets.only(top: 250.0, left: 80),
-            //   // ignore: avoid_unnecessary_containers
-            //   child: Container(
-            //     child: ToggleSwitch(
-            //       minWidth: 110.0,
-            //       cornerRadius: 20.0,
-            //       activeBgColors: [
-            //         [Colors.blue],
-            //         [Colors.blue],
-            //       ],
-            //       activeFgColor: Colors.white,
-            //       inactiveBgColor: Colors.green,
-            //       inactiveFgColor: Colors.white,
-            //       initialLabelIndex: 0,
-            //       totalSwitches: 2,
-            //       labels: ['All Products', 'Nearby'],
-            //       radiusStyle: true,
-            //       onToggle: (index) {
-            //         searchQuery(index!);
-            //       },
-            //     ),
-            //   ),
-            // ),
-
-            // Padding(
-            //   padding: const EdgeInsets.only(left: 80, bottom: 160),
-            //   child: FlutterSwitch(
-            //     width: 105.0,
-            //     height: 40.0,
-            //     valueFontSize: 25.0,
-            //     toggleSize: 45.0,
-            //     value: status1,
-            //     borderRadius: 30.0,
-            //     padding: 8.0,
-            //     showOnOff: true,
-            //     onToggle: (val) {
-            //       setState(() {
-            //         status1 = val;
-            //         print(status1);
-            //       });
-            //     },
-            //   ),
-            // ),
-
-            Padding(
-              padding: const EdgeInsets.only(top: 250.0),
+              padding: const EdgeInsets.only(top: 270.0),
               child: ListView.builder(
                   itemCount: status == 0
                       ? searchedProducts.length
                       : nearbyProducts.length,
                   itemBuilder: (context, index) {
                     if (status == 0) {
-                      // ignore: avoid_print
-                      print("---------> ALL Products");
                       return CardView(
                         productList: searchedProducts[index],
                       );
                     } else {
-                      // ignore: avoid_print
-                      print("---------> NearBy Products");
-
                       return CardView(
                         productList: nearbyProducts[index],
                       );
@@ -318,7 +196,79 @@ class _SearchState extends State<Search> {
   }
 
   Future<void> setProducts() async {
-    var products = await Flutter_api().getAllProducts();
+    // Dummy data for medicines
+    var products = [
+      {
+        "Name": "Panadol",
+        "Description": "Pain reliever and fever reducer",
+        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+        "StoreName": "Pharmacy A",
+        "Price": "\$5"
+      },
+      {
+        "Name": "Panadol",
+        "Description": "Pain reliever and fever reducer",
+        "StoreLocation": {"latitude": 37.7449, "longitude": -132.4194},
+        "StoreName": "Pharmacy B",
+        "Price": "\$8"
+      },
+      {
+        "Name": "Panadol",
+        "Description": "Pain reliever and fever reducer",
+        "StoreLocation": {"latitude": 37.7249, "longitude": -124.4194},
+        "StoreName": "Pharmacy C",
+        "Price": "\$2"
+      },
+      {
+        "Name": "Aspirin",
+        "Description": "Used to reduce pain, fever, or inflammation",
+        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+        "StoreName": "Pharmacy B",
+        "Price": "\$3"
+      },
+      {
+        "Name": "Ibuprofen",
+        "Description": "Nonsteroidal anti-inflammatory drug (NSAID)",
+        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+        "StoreName": "Pharmacy C",
+        "Price": "\$7"
+      },
+      {
+        "Name": "Amoxicillin",
+        "Description": "Antibiotic used to treat bacterial infections",
+        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+        "StoreName": "Pharmacy D",
+        "Price": "\$10"
+      },
+      {
+        "Name": "Amoxicillin",
+        "Description": "Antibiotic used to treat bacterial infections",
+        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+        "StoreName": "Pharmacy D",
+        "Price": "\$10"
+      },
+      {
+        "Name": "Cough Syrup",
+        "Description": "Used to relieve cough and cold symptoms",
+        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+        "StoreName": "Pharmacy E",
+        "Price": "\$8"
+      },
+    ];
+
+    var pos = await Flutter_api().getPosition();
+    for (var product in products) {
+      var distance = Geolocator.distanceBetween(
+          pos.latitude,
+          pos.longitude,
+          (product["StoreLocation"] as Map<String, dynamic>)["latitude"],
+          (product["StoreLocation"] as Map<String, dynamic>)["longitude"]);
+      product["Distance"] = (distance / 1000).toStringAsFixed(2); // in km
+    }
+
+    products.sort((a, b) => double.parse(a["Distance"] as String)
+        .compareTo(double.parse(b["Distance"] as String))); // Sort by distance
+
     setState(() {
       allProducts = products;
       searchedProducts = products;
@@ -330,8 +280,6 @@ class _SearchState extends State<Search> {
     setState(() {
       status = index;
     });
-    // ignore: avoid_print
-    print(status);
 
     if (index == 0) return;
 
@@ -345,21 +293,40 @@ class _SearchState extends State<Search> {
         var distance = Geolocator.distanceBetween(
             pos.latitude,
             pos.longitude,
-            element["StoreLocation"].latitude,
-            element["StoreLocation"].longitude);
-        // ignore: avoid_print
-        print(distance);
+            element["StoreLocation"]["latitude"],
+            element["StoreLocation"]["longitude"]);
         if (distance / 1000 < radius) {
-          // ignore: avoid_print
-          print("add Product");
           nearbyProducts.add(element);
         }
       }
     }
+  }
+}
 
-    // ignore: avoid_print
-    print(allProducts.length);
-    // ignore: avoid_print
-    print(nearbyProducts.length);
+class CardView extends StatelessWidget {
+  final Map productList;
+
+  const CardView({required this.productList, Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      child: ListTile(
+        leading: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.location_on, color: Colors.blue),
+            Text("${productList["Distance"]} km"),
+          ],
+        ),
+        title: Text(productList["Name"]),
+        subtitle: Text(productList["Description"]),
+        trailing: Text(productList["Price"]),
+        onTap: () {
+          // Handle card tap
+        },
+      ),
+    );
   }
 }
