@@ -306,7 +306,7 @@ class _SearchState extends State<Search> {
 class CardView extends StatelessWidget {
   final Map productList;
 
-  const CardView({required this.productList, Key? key}) : super(key: key);
+  const CardView({required this.productList, super.key});
 
   @override
   Widget build(BuildContext context) {

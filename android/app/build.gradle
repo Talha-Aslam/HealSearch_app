@@ -1,3 +1,4 @@
+1/android/app/build.gradle
 plugins {
     id "com.android.application"
     id "kotlin-android"
@@ -55,4 +56,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }
