@@ -150,7 +150,7 @@ class _LoginState extends State<Login> {
                         child: Text(
                           'Forgot Password?',
                           style: TextStyle(
-                            color: Colors.deepOrangeAccent,
+                            color: Color.fromARGB(255, 238, 24, 52),
                           ),
                         ),
                       ),
@@ -160,8 +160,13 @@ class _LoginState extends State<Login> {
                       controller: _btnController,
                       onPressed: () => onClickFun(_btnController),
                       color: Color(0xFFE94057),
-                      child:
-                          Text('Login', style: TextStyle(color: Colors.white)),
+                      child: Text(
+                        'Login',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16),
+                      ),
                     ),
                     SizedBox(height: 7),
                     Center(
@@ -189,7 +194,7 @@ class _LoginState extends State<Login> {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                color: Colors.deepOrangeAccent,
+                                color: Color.fromARGB(255, 238, 24, 52),
                               ),
                             ),
                           ), // Add spacing between text and button

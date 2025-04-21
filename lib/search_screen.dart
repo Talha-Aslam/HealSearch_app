@@ -61,8 +61,9 @@ class _SearchState extends State<Search> {
                 decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Color.fromARGB(255, 190, 82, 15),
-                        Color.fromARGB(188, 255, 140, 0),
+                        Color(0xFF8A2387),
+                        Color(0xFFE94057),
+                        Color(0xFFF27121),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,

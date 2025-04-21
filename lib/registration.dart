@@ -362,8 +362,8 @@ class _RegistrationState extends State<Registration> {
                           text: " Sign In!",
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w300,
-                            color: Color.fromRGBO(221, 125, 15, 1),
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFE94057),
                           ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () {
