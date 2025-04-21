@@ -51,8 +51,9 @@ class _LoginState extends State<Login> {
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color.fromARGB(255, 190, 82, 15),
-                    Color.fromARGB(188, 255, 140, 0),
+                    Color(0xFF8A2387),
+                    Color(0xFFE94057),
+                    Color(0xFFF27121),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -139,28 +140,95 @@ class _LoginState extends State<Login> {
                       validator:
                           RequiredValidator(errorText: "Required *").call,
                     ),
-                    SizedBox(height: 32),
+                    SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          // Implement forgot password functionality
+                        },
+                        child: Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            color: Colors.deepOrangeAccent,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20),
                     RoundedLoadingButton(
                       controller: _btnController,
                       onPressed: () => onClickFun(_btnController),
-                      color: Color.fromARGB(188, 255, 140, 0),
+                      color: Color(0xFFE94057),
                       child:
                           Text('Login', style: TextStyle(color: Colors.white)),
                     ),
-                    SizedBox(height: 16),
+                    SizedBox(height: 7),
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Don\'t have an account!',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 2,
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const Registration()));
+                            },
+                            child: Text(
+                              'Sign Up',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                                color: Colors.deepOrangeAccent,
+                              ),
+                            ),
+                          ), // Add spacing between text and button
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 18),
+                    Center(
+                      child: Text(
+                        'Or login with',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.g_mobiledata),
+                          icon: Icon(
+                            Icons.g_mobiledata,
+                            size: 50,
+                          ),
                           color: Colors.red,
                           onPressed: () {
                             // Implement Google login
                           },
                         ),
-                        SizedBox(width: 16),
+                        SizedBox(width: 10),
                         IconButton(
-                          icon: Icon(Icons.facebook_outlined),
+                          icon: Icon(
+                            Icons.facebook_outlined,
+                            size: 40,
+                          ),
                           color: Colors.blue,
                           onPressed: () {
                             // Implement Facebook login
@@ -181,17 +249,6 @@ class _LoginState extends State<Login> {
                               color: Color.fromARGB(255, 190, 82, 15))),
                     ),
                     SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const Registration()));
-                      },
-                      child: Text('Sign Up',
-                          style: TextStyle(
-                              color: Color.fromARGB(255, 190, 82, 15))),
-                    ),
                   ],
                 ),
               ),
