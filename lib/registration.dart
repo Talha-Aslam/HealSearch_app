@@ -55,17 +55,18 @@ class _RegistrationState extends State<Registration> {
                 children: [
                   Container(
                     alignment: Alignment.center,
-                    height: height * .15,
+                    height: height * .2,
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Color.fromARGB(255, 190, 82, 15),
-                          Color.fromARGB(188, 255, 140, 0),
+                          Color(0xFF8A2387),
+                          Color(0xFFE94057),
+                          Color(0xFFF27121),
                         ],
                       ),
                       borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(100),
-                        bottomRight: Radius.circular(100),
+                        bottomLeft: Radius.circular(85),
+                        bottomRight: Radius.circular(85),
                       ),
                     ),
                     child: const Text(
@@ -324,15 +325,19 @@ class _RegistrationState extends State<Registration> {
                             } else {
                               onClickFun2(_btnController);
                             }
+                          } else {
+                            _btnController
+                                .reset(); // Reset the button if validation fails
                           }
                         },
                         controller: _btnController,
-                        color: Color.fromARGB(188, 255, 140, 0),
+                        color: Color(0xFFE94057),
                         child: const Text(
                           "Submit",
                           style: TextStyle(
+                            color: Colors.white,
                             fontSize: 18,
-                            fontWeight: FontWeight.normal,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -354,7 +359,7 @@ class _RegistrationState extends State<Registration> {
                       ),
                       children: <TextSpan>[
                         TextSpan(
-                          text: " SignIn!",
+                          text: " Sign In!",
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w300,

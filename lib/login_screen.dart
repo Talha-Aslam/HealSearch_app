@@ -176,9 +176,6 @@ class _LoginState extends State<Login> {
                               color: Colors.grey,
                             ),
                           ),
-                          SizedBox(
-                            width: 2,
-                          ),
                           TextButton(
                             onPressed: () {
                               Navigator.push(
@@ -187,11 +184,11 @@ class _LoginState extends State<Login> {
                                       builder: (context) =>
                                           const Registration()));
                             },
-                            child: Text(
+                            child: const Text(
                               'Sign Up',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 10,
+                                fontSize: 13,
                                 color: Colors.deepOrangeAccent,
                               ),
                             ),
