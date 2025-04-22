@@ -63,8 +63,9 @@ class _ProfileState extends State<Profile> {
                     decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Color.fromARGB(255, 190, 82, 15),
-                            Color.fromARGB(188, 255, 140, 0),
+                            Color(0xFF8A2387),
+                            Color(0xFFE94057),
+                            Color(0xFFF27121),
                           ],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -117,8 +118,10 @@ class _ProfileState extends State<Profile> {
                     padding: const EdgeInsets.only(top: 30.0),
                     child: Text(
                       Name ?? 'Talha Aslam',
-                      style: const TextStyle(
-                          color: Colors.black,
+                      style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
                           fontWeight: FontWeight.bold,
                           fontSize: 26),
                     ),
