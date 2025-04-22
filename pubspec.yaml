@@ -47,8 +47,8 @@ dependencies:
   rounded_loading_button: ^2.1.0
   form_field_validator: ^1.1.0
   quickalert: ^1.0.1
+  # Removed the alert package as it is not actively used in the codebase.
   email_otp: ^3.0.2
-  alert: ^2.0.1
   geolocator: ^13.0.1
   geocoding: ^3.0.0
   encrypt: ^5.0.1

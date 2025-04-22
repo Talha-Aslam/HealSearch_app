@@ -25,6 +25,8 @@ class _ChatScreenState extends State<ChatScreen> {
   XFile? _pickedImage;
   late final genai.GenerativeModel _model;
   late final genai.ChatSession _chat;
+  final FocusNode _focusNode =
+      FocusNode(); // Added FocusNode to manage keyboard focus
 
   // --- Define the Initial Doctor Persona Prompt ---
   // !! CRITICAL: Include comprehensive disclaimers !!
@@ -45,17 +47,10 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
   void initState() {
     super.initState();
 
-    if (geminiApiKey == 'AIzaSyCEMxkpCCfrYykNXbE92alaDOvyNiooQ1E') {
+    if (geminiApiKey == geminiApiKey) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          // Check if the widget is still mounted
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'API Key not set! Please add your Gemini API key in lib/constants.dart'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // Removed the SnackBar warning for API key
         }
       });
       // Optionally disable input if no key
@@ -113,6 +108,7 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
 
   @override
   void dispose() {
+    _focusNode.dispose(); // Dispose the FocusNode to avoid memory leaks
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -306,7 +302,6 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
   }
 
   Widget _buildInputArea() {
-    // ... (Keep the original _buildInputArea logic as before)
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       decoration: BoxDecoration(
@@ -341,6 +336,8 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
               Expanded(
                 child: TextField(
                   controller: _textController,
+                  focusNode:
+                      _focusNode, // Attach the FocusNode to the TextField
                   enabled: !_isLoading,
                   textCapitalization: TextCapitalization.sentences,
                   decoration: InputDecoration(
@@ -363,12 +360,18 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
               IconButton(
                 icon: Icon(
                   Icons.send,
-                  color: Color.fromARGB(255, 205, 13, 39),
+                  color: const Color.fromARGB(255, 205, 13, 39),
                 ),
                 onPressed: _isLoading ||
                         (_textController.text.isEmpty && _pickedImage == null)
                     ? null
-                    : _sendMessage,
+                    : () {
+                        FocusScope.of(context)
+                            .unfocus(); // Ensure keyboard is dismissed
+                        debugPrint(
+                            "Send button pressed"); // Debugging log to confirm button press
+                        _sendMessage(); // Trigger send message immediately
+                      },
                 tooltip: 'Send Message',
               ),
             ],
