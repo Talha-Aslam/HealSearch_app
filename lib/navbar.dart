@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_project/chatBot.dart';
+import 'package:my_project/chat_screen.dart';
 
 import 'package:my_project/data.dart';
 import 'package:my_project/login_screen.dart';
@@ -66,7 +66,7 @@ class Navbar extends StatelessWidget {
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
-              return const ChatBot();
+              return ChatScreen();
             }));
           },
           title: const Text(
