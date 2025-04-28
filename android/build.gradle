@@ -1,11 +1,11 @@
 buildscript {
-    ext.kotlin_version = '1.9.10' // Updated to the latest stable Kotlin version
+    ext.kotlin_version = '1.8.10' // Downgrade to version compatible with Gradle 8.0
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.0'
+        classpath 'com.android.tools.build:gradle:8.2.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -20,13 +20,13 @@ allprojects {
 subprojects {
     afterEvaluate { project ->
         if (project.hasProperty("kotlin_version")) {
-            project.ext.kotlin_version = '1.9.10'
+            project.ext.kotlin_version = '1.8.10'
         }
     }
     configurations.all {
         resolutionStrategy.eachDependency { details ->
             if (details.requested.group == 'org.jetbrains.kotlin') {
-                details.useVersion '1.9.10' // Force Kotlin version for all dependencies
+                details.useVersion '1.8.10' // Force Kotlin version for all dependencies
             }
         }
     }
@@ -36,7 +36,7 @@ subprojects {
     configurations.all {
         resolutionStrategy.eachDependency { details ->
             if (details.requested.group == 'org.jetbrains.kotlin' && details.requested.name == 'kotlin-gradle-plugin') {
-                details.useVersion '1.9.10' // Force Kotlin version for the alert module
+                details.useVersion '1.8.10' // Force Kotlin version for the alert module
             }
         }
     }

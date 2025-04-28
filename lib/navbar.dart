@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:my_project/chat_screen.dart';
-
-import 'package:my_project/data.dart';
-import 'package:my_project/login_screen.dart';
-import 'package:my_project/profile.dart';
-// import 'package:share_plus/share_plus.dart';
+import 'package:healsearch_app/chat_screen.dart';
+import 'package:google_nav_bar/google_nav_bar.dart';
+import 'package:healsearch_app/data.dart';
+import 'package:healsearch_app/login_screen.dart';
+import 'package:healsearch_app/profile.dart';
 
 class Navbar extends StatelessWidget {
   const Navbar({super.key});

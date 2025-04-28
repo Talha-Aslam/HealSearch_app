@@ -1,6 +1,6 @@
 import "package:flutter/material.dart";
 // Card View Class
-import 'package:my_project/product_details.dart';
+import 'package:healsearch_app/product_details.dart';
 
 class CardView extends StatelessWidget {
   // ignore: use_key_in_widget_constructors

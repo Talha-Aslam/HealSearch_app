@@ -1,0 +1,2 @@
+/Users/ameerhamza/Documents/git files/HealSearch_app/android/app/.cxx/Debug/5r23u183/x86_64/CMakeFiles/edit_cache.dir
+/Users/ameerhamza/Documents/git files/HealSearch_app/android/app/.cxx/Debug/5r23u183/x86_64/CMakeFiles/rebuild_cache.dir

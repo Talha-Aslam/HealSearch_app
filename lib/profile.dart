@@ -2,11 +2,11 @@
 
 import 'package:firedart/firestore/firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:my_project/data.dart';
-import 'package:my_project/login_screen.dart';
+import 'package:healsearch_app/data.dart';
+import 'package:healsearch_app/login_screen.dart';
 import 'package:firedart/firedart.dart';
-import 'package:my_project/showProfile.dart';
-import 'package:my_project/updateProfile.dart';
+import 'package:healsearch_app/showProfile.dart';
+import 'package:healsearch_app/updateProfile.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -63,9 +63,8 @@ class _ProfileState extends State<Profile> {
                     decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Color(0xFF8A2387),
-                            Color(0xFFE94057),
-                            Color(0xFFF27121),
+                            Color.fromARGB(255, 190, 82, 15),
+                            Color.fromARGB(188, 255, 140, 0),
                           ],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -118,10 +117,8 @@ class _ProfileState extends State<Profile> {
                     padding: const EdgeInsets.only(top: 30.0),
                     child: Text(
                       Name ?? 'Talha Aslam',
-                      style: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
+                      style: const TextStyle(
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
                           fontSize: 26),
                     ),

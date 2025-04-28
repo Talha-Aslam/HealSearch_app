@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-import 'package:my_project/splash_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:healsearch_app/splash_screen.dart';
 import 'package:firedart/firedart.dart';
 
 // ignore: constant_identifier_names

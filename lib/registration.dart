@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:my_project/login_screen.dart';
-import 'package:rounded_loading_button/rounded_loading_button.dart';
+import 'package:healsearch_app/login_screen.dart';
 import 'package:flutter/gestures.dart';
 
 import 'firebase_database.dart';
@@ -19,22 +18,7 @@ class _RegistrationState extends State<Registration> {
   var name = TextEditingController();
   var phoneNumber = TextEditingController();
   var password = TextEditingController();
-  final RoundedLoadingButtonController _btnController =
-      RoundedLoadingButtonController();
-
-  void onClickFun(RoundedLoadingButtonController btnController) async {
-    Timer(const Duration(seconds: 3), () {
-      _btnController.success();
-    });
-  }
-
-  void onClickFun2(RoundedLoadingButtonController btnController) async {
-    Timer(const Duration(seconds: 2), () {
-      _btnController.error();
-      Future.delayed(const Duration(seconds: 1));
-      _btnController.reset();
-    });
-  }
+  bool _isLoading = false;
 
   bool _isObscure = true;
   GlobalKey<FormState> formkey = GlobalKey<FormState>();
@@ -181,34 +165,57 @@ class _RegistrationState extends State<Registration> {
   }
 
   Widget _buildSubmitButton() {
-    return RoundedLoadingButton(
-      onPressed: () async {
-        var object1 = Flutter_api();
-        if (formkey.currentState!.validate()) {
-          if (await object1.register(
-                  email.text, name.text, phoneNumber.text, password.text) ==
-              true) {
-            onClickFun(_btnController);
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const Login()),
-            );
-          } else {
-            onClickFun2(_btnController);
-          }
-        } else {
-          _btnController.reset();
-        }
-      },
-      controller: _btnController,
-      color: const Color(0xFFE94057),
-      child: const Text(
-        "Submit",
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading 
+            ? null 
+            : () async {
+                if (formkey.currentState!.validate()) {
+                  setState(() {
+                    _isLoading = true;
+                  });
+                  
+                  var object1 = Flutter_api();
+                  if (await object1.register(
+                      email.text, name.text, phoneNumber.text, password.text) == true) {
+                    // Simulate success state before navigating
+                    Timer(const Duration(seconds: 3), () {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const Login()),
+                      );
+                    });
+                  } else {
+                    // Handle error state
+                    Timer(const Duration(seconds: 2), () {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                    });
+                  }
+                }
+              },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE94057),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
         ),
+        child: _isLoading 
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text(
+                "Submit",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
       ),
     );
   }

@@ -2,9 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
-import 'package:rounded_loading_button/rounded_loading_button.dart';
-import 'package:my_project/registration.dart';
-import 'package:my_project/search_screen.dart';
+import 'package:healsearch_app/registration.dart';
+import 'package:healsearch_app/search_screen.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -18,24 +17,24 @@ class _LoginState extends State<Login> {
   bool _isObscure = true;
   var email = TextEditingController();
   var password = TextEditingController();
-  final RoundedLoadingButtonController _btnController =
-      RoundedLoadingButtonController();
+  bool _isLoading = false;
   double height = 0, width = 0;
 
-  void onClickFun(RoundedLoadingButtonController btnController) async {
-    Timer(const Duration(seconds: 3), () {
-      _btnController.success();
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (context) => const Search()));
-    });
-  }
-
-  void onClickFun2(RoundedLoadingButtonController btnController) async {
-    Timer(const Duration(seconds: 2), () {
-      _btnController.error();
-      Future.delayed(const Duration(seconds: 1));
-      _btnController.reset();
-    });
+  void onClickLogin() async {
+    if (formkey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+      
+      // Simulating network delay
+      Timer(const Duration(seconds: 3), () {
+        setState(() {
+          _isLoading = false;
+        });
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const Search()));
+      });
+    }
   }
 
   @override
@@ -156,16 +155,27 @@ class _LoginState extends State<Login> {
                       ),
                     ),
                     SizedBox(height: 20),
-                    RoundedLoadingButton(
-                      controller: _btnController,
-                      onPressed: () => onClickFun(_btnController),
-                      color: Color(0xFFE94057),
-                      child: Text(
-                        'Login',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : onClickLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE94057),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
+                                'Login',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
                       ),
                     ),
                     SizedBox(height: 7),

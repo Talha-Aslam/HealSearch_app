@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:my_project/firebase_database.dart';
+import 'package:healsearch_app/firebase_database.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Androidsmall1Widget extends StatefulWidget {

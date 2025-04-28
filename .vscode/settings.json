@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "T:/LapTop Data/F-Y-P/APP/flutter_application_1/windows"
+    "cmake.sourceDirectory": "T:/LapTop Data/F-Y-P/APP/flutter_application_1/windows",
+    "java.configuration.updateBuildConfiguration": "automatic"
 }

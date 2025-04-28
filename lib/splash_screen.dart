@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:my_project/login_screen.dart';
-// import 'package:my_project/search_screen.dart';
+import 'package:healsearch_app/login_screen.dart';
+// import 'package:healsearch_app/search_screen.dart';
 
 class Splash extends StatefulWidget {
   const Splash({super.key});

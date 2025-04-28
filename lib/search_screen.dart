@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'package:my_project/firebase_database.dart';
-import 'package:my_project/navbar.dart';
+import 'package:healsearch_app/firebase_database.dart';
+import 'package:healsearch_app/navbar.dart';
 
 void main() {
   runApp(const MaterialApp(
