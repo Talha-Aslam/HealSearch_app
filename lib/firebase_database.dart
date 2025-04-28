@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print, camel_case_types, non_constant_identifier_names
 // ignore_for_file: constant_identifier_names
 // import 'dart:convert';
-// import 'package:alert/alert.dart';
+// import 'package:alert/Alert.dart';
 
 import 'package:firedart/firedart.dart';
 import 'package:flutter/material.dart';
@@ -17,8 +17,13 @@ class Flutter_api {
   // Main Function
   void main() async {
     WidgetsFlutterBinding.ensureInitialized();
-    Firestore.initialize(project_id); // Establishing connection with Firestore
-    print("Firestore Initialized");
+    try {
+      Firestore.initialize(project_id); // Establishing connection with Firestore
+      print("Firestore Initialized");
+    } catch (e) {
+      // If Firestore is already initialized, just print a message
+      print("Firestore is already initialized");
+    }
   }
 
   // checking login of members

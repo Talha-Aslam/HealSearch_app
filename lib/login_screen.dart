@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
+import 'package:healsearch_app/data.dart';
+import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/registration.dart';
 import 'package:healsearch_app/search_screen.dart';
+import 'package:firedart/firedart.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -19,22 +22,89 @@ class _LoginState extends State<Login> {
   var password = TextEditingController();
   bool _isLoading = false;
   double height = 0, width = 0;
+  // Create an instance of our Firebase API wrapper
+  final _firebaseApi = Flutter_api();
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize Firebase connection
+    _firebaseApi.main();
+  }
 
   void onClickLogin() async {
     if (formkey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
       
-      // Simulating network delay
-      Timer(const Duration(seconds: 3), () {
+      try {
+        // Call the check_login method from our Firebase API
+        bool loginSuccess = await _firebaseApi.check_login(
+          email.text.trim(),
+          password.text,
+        );
+        
+        if (loginSuccess) {
+          // Fetch user data from Firestore
+          try {
+            final userData = await Firestore.instance
+                .collection("appData")
+                .document(email.text.trim())
+                .get();
+            
+            // Set user data in our global AppData object
+            appData.setUserData(
+              email.text.trim(),
+              userData['name'] ?? "User",
+              userData['phNo'] ?? "",
+            );
+            
+            setState(() {
+              _isLoading = false;
+            });
+            
+            Navigator.pushReplacement(
+                context, MaterialPageRoute(builder: (context) => const Search()));
+          } catch (e) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = "Error retrieving user data. Please try again.";
+            });
+            print("Error fetching user data: $e");
+          }
+        } else {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = "Invalid email or password. Please try again.";
+          });
+        }
+      } catch (e) {
         setState(() {
           _isLoading = false;
+          _errorMessage = "Error connecting to the server. Please try again later.";
         });
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => const Search()));
-      });
+        print("Login error: $e");
+      }
     }
+  }
+
+  // Method to handle Google sign in
+  void _handleGoogleSignIn() {
+    // For future implementation - needs google_sign_in package setup
+    setState(() {
+      _errorMessage = "Google Sign-In is not configured yet.";
+    });
+  }
+
+  // Method to handle Facebook sign in
+  void _handleFacebookSignIn() {
+    // For future implementation - needs facebook_auth package
+    setState(() {
+      _errorMessage = "Facebook Sign-In is not configured yet.";
+    });
   }
 
   @override
@@ -139,6 +209,13 @@ class _LoginState extends State<Login> {
                       validator:
                           RequiredValidator(errorText: "Required *").call,
                     ),
+                    if (_errorMessage != null) ...[
+                      SizedBox(height: 10),
+                      Text(
+                        _errorMessage!,
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ],
                     SizedBox(height: 20),
                     Align(
                       alignment: Alignment.centerRight,
@@ -231,9 +308,7 @@ class _LoginState extends State<Login> {
                             size: 50,
                           ),
                           color: Colors.red,
-                          onPressed: () {
-                            // Implement Google login
-                          },
+                          onPressed: _handleGoogleSignIn,
                         ),
                         SizedBox(width: 10),
                         IconButton(
@@ -242,9 +317,7 @@ class _LoginState extends State<Login> {
                             size: 40,
                           ),
                           color: Colors.blue,
-                          onPressed: () {
-                            // Implement Facebook login
-                          },
+                          onPressed: _handleFacebookSignIn,
                         ),
                       ],
                     ),
