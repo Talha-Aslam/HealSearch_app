@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/login_screen.dart';
-import 'package:firedart/firedart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:healsearch_app/showProfile.dart';
 import 'package:healsearch_app/updateProfile.dart';
 
@@ -29,16 +30,26 @@ class _ProfileState extends State<Profile> {
     // Only fetch from Firebase if logged in
     if (appData.isLoggedIn && appData.Email != "You are not logged in") {
       try {
-        var data = Firestore.instance.collection("appData");
-        var data1 = data.document(appData.Email);
-        var data2 = await data1.get();
+        DocumentSnapshot userData = await FirebaseFirestore.instance
+            .collection("appData")
+            .doc(appData.Email)
+            .get();
 
-        setState(() {
-          name = data2['name'];
-          email = data2['email'];
-          phoneNumber = data2['phNo'];
-          isLoading = false;
-        });
+        if (userData.exists) {
+          Map<String, dynamic>? data = userData.data() as Map<String, dynamic>?;
+          
+          setState(() {
+            name = data?['name'];
+            email = data?['email'];
+            phoneNumber = data?['phNo'];
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            errorMessage = "User profile not found";
+            isLoading = false;
+          });
+        }
       } catch (e) {
         setState(() {
           errorMessage = "Error fetching profile data";
@@ -57,12 +68,19 @@ class _ProfileState extends State<Profile> {
     }
   }
 
-  void _handleLogout() {
-    appData.clearUserData();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const Login()),
-    );
+  void _handleLogout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      appData.clearUserData();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Login()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to logout: ${e.toString()}')),
+      );
+    }
   }
 
   void _handleDeleteProfile() async {
@@ -85,8 +103,20 @@ class _ProfileState extends State<Profile> {
                 // Delete user profile
                 if (appData.isLoggedIn && appData.Email != "You are not logged in") {
                   try {
-                    var data = Firestore.instance.collection("appData");
-                    await data.document(appData.Email).delete();
+                    // First delete the user data from Firestore
+                    await FirebaseFirestore.instance
+                        .collection("appData")
+                        .doc(appData.Email)
+                        .delete();
+                    
+                    // Then delete the Firebase Auth user
+                    try {
+                      await FirebaseAuth.instance.currentUser?.delete();
+                    } catch (authError) {
+                      print("Error deleting auth user: $authError");
+                      // Proceed anyway since we deleted the Firestore data
+                    }
+                    
                     appData.clearUserData();
                     
                     Navigator.of(context).pop(); // Close dialog

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:healsearch_app/login_screen.dart';
-// import 'package:healsearch_app/search_screen.dart';
 
 class Splash extends StatefulWidget {
   const Splash({super.key});
@@ -10,38 +9,78 @@ class Splash extends StatefulWidget {
   State<Splash> createState() => _SplashState();
 }
 
-class _SplashState extends State<Splash> {
+class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
+  // Using AnimationController for more efficient animations
+  late AnimationController _animationController;
+  
   @override
   void initState() {
     super.initState();
-    navigateToHome();
+    
+    // Initialize animation controller
+    _animationController = AnimationController(
+      vsync: this, 
+      duration: const Duration(milliseconds: 1200),
+    );
+    _animationController.repeat();
+    
+    // Use a more efficient way to navigate
+    _navigateToHome();
+  }
+  
+  @override
+  void dispose() {
+    // Properly dispose the animation controller to prevent memory leaks
+    _animationController.dispose();
+    super.dispose();
   }
 
-  navigateToHome() async {
-    await Future.delayed(const Duration(milliseconds: 5000)).then((value) => {
-          Navigator.pushReplacement(
-            // ignore: use_build_context_synchronously
-            context,
-            MaterialPageRoute(builder: (context) => const Login()),
-          )
-        });
+  Future<void> _navigateToHome() async {
+    // Reduced splash screen time to improve user experience
+    return Future.delayed(const Duration(milliseconds: 3000)).then((_) {
+      // Using pushReplacement with a fade transition for smoother experience
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const Login(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Colors.white,
-      body: SizedBox(
+      body: Container(
         width: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        // Using Stack instead of Column for better layout performance
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Image(image: AssetImage("images/logo3.png"), width: 400),
-            SizedBox(height: 35),
-            SpinKitChasingDots(
-              color: Colors.black,
-              size: 40.0,
-            )
+            // Pre-cached image for better performance
+            Image.asset(
+              "images/logo3.png", 
+              width: 400,
+              // Using cacheWidth to optimize memory usage
+              cacheWidth: 400,
+            ),
+            
+            // Position the loading indicator below the logo
+            Positioned(
+              bottom: MediaQuery.of(context).size.height * 0.35,
+              child: SpinKitChasingDots(
+                color: Colors.black,
+                size: 40.0,
+                // controller: _animationController,
+              ),
+            ),
           ],
         ),
       ),

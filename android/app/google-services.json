@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "269639114847",
+    "project_id": "healsearch-6565e",
+    "storage_bucket": "healsearch-6565e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:269639114847:android:81b8737f0191ae6f397bea",
+        "android_client_info": {
+          "package_name": "com.example.healsearch_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDulVR9UD11zhJ2gUuyPYe42Srpd4X21G8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

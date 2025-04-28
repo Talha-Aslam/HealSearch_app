@@ -6,7 +6,8 @@ import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/registration.dart';
 import 'package:healsearch_app/search_screen.dart';
-import 'package:firedart/firedart.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -16,330 +17,435 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
-  GlobalKey<FormState> formkey = GlobalKey<FormState>();
+  final GlobalKey<FormState> formkey = GlobalKey<FormState>();
   bool _isObscure = true;
-  var email = TextEditingController();
-  var password = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
   bool _isLoading = false;
   double height = 0, width = 0;
   // Create an instance of our Firebase API wrapper
   final _firebaseApi = Flutter_api();
   String? _errorMessage;
+  
+  // Cache form validators to avoid rebuilding them
+  final _emailValidator = MultiValidator([
+    RequiredValidator(errorText: "Required *"),
+    EmailValidator(errorText: "Not a valid email"),
+  ]);
+  final _passwordValidator = RequiredValidator(errorText: "Required *");
 
   @override
-  void initState() {
-    super.initState();
-    // Initialize Firebase connection
-    _firebaseApi.main();
+  void dispose() {
+    // Clean up controllers when the widget is disposed
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
   }
 
-  void onClickLogin() async {
-    if (formkey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+  Future<void> onClickLogin() async {
+    // Validate early and return if invalid
+    if (!formkey.currentState!.validate()) return;
+
+    // Show loading indicator
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      // Run authentication in a separate isolate or compute function if possible
+      bool loginSuccess = await _firebaseApi.check_login(
+        _email.text.trim(),
+        _password.text,
+      );
       
-      try {
-        // Call the check_login method from our Firebase API
-        bool loginSuccess = await _firebaseApi.check_login(
-          email.text.trim(),
-          password.text,
-        );
-        
-        if (loginSuccess) {
-          // Fetch user data from Firestore
-          try {
-            final userData = await Firestore.instance
-                .collection("appData")
-                .document(email.text.trim())
-                .get();
+      // If we're not mounted anymore, don't continue
+      if (!mounted) return;
+      
+      if (loginSuccess) {
+        try {
+          // Make sure we have a valid Firebase user
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser == null) {
+            throw Exception("User authentication succeeded but no user data available");
+          }
+          
+          // Fetch user data efficiently with timeout
+          final userDoc = await FirebaseFirestore.instance
+              .collection("appData")
+              .doc(_email.text.trim())
+              .get()
+              .timeout(const Duration(seconds: 10));
+          
+          if (!mounted) return;
+          
+          // Set user data in our global AppData object
+          appData.setUserData(
+            _email.text.trim(),
+            userDoc.data()?['name'] ?? "User",
+            userDoc.data()?['phNo'] ?? "",
+          );
+          
+          // Only update state if still mounted
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
             
-            // Set user data in our global AppData object
-            appData.setUserData(
-              email.text.trim(),
-              userData['name'] ?? "User",
-              userData['phNo'] ?? "",
+            // Use pushAndRemoveUntil for more efficient navigation
+            Navigator.pushAndRemoveUntil(
+              context, 
+              MaterialPageRoute(builder: (context) => const Search()),
+              (route) => false,
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            debugPrint("Error fetching user data: $e");
+            
+            // Still navigate to search screen even if we couldn't fetch complete profile data
+            // This prevents login issues due to profile data access problems
+            setState(() {
+              _isLoading = false;
+            });
+            
+            // Show a brief message about the issue
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Signed in, but there was an issue loading your profile"),
+                duration: Duration(seconds: 3),
+              ),
             );
             
-            setState(() {
-              _isLoading = false;
-            });
-            
-            Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (context) => const Search()));
-          } catch (e) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = "Error retrieving user data. Please try again.";
-            });
-            print("Error fetching user data: $e");
+            Navigator.pushAndRemoveUntil(
+              context, 
+              MaterialPageRoute(builder: (context) => const Search()),
+              (route) => false,
+            );
           }
-        } else {
+        }
+      } else {
+        if (mounted) {
           setState(() {
             _isLoading = false;
             _errorMessage = "Invalid email or password. Please try again.";
           });
         }
-      } catch (e) {
+      }
+    } catch (e) {
+      if (mounted) {
+        debugPrint("Login error: $e");
         setState(() {
           _isLoading = false;
-          _errorMessage = "Error connecting to the server. Please try again later.";
+          
+          // More specific error message based on error type
+          if (e.toString().contains('PigeonUserDetails')) {
+            _errorMessage = "Authentication succeeded but there was an issue with user data. Please try again.";
+          } else if (e.toString().contains('network')) {
+            _errorMessage = "Network error. Please check your internet connection and try again.";
+          } else if (e.toString().contains('password')) {
+            _errorMessage = "Incorrect password. Please try again.";
+          } else if (e.toString().contains('user-not-found') || e.toString().contains('user not found')) {
+            _errorMessage = "User not found. Please check your email or register a new account.";
+          } else {
+            _errorMessage = "Error connecting to the server. Please try again later.";
+          }
         });
-        print("Login error: $e");
       }
     }
   }
 
-  // Method to handle Google sign in
-  void _handleGoogleSignIn() {
-    // For future implementation - needs google_sign_in package setup
-    setState(() {
-      _errorMessage = "Google Sign-In is not configured yet.";
-    });
+  // Simplified social sign-in methods with error handling
+  Future<void> _handleGoogleSignIn() async {
+    // Placeholder for Google Sign-In implementation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Google Sign-In is not configured yet"))
+    );
   }
 
-  // Method to handle Facebook sign in
-  void _handleFacebookSignIn() {
-    // For future implementation - needs facebook_auth package
-    setState(() {
-      _errorMessage = "Facebook Sign-In is not configured yet.";
-    });
+  Future<void> _handleFacebookSignIn() async {
+    // Placeholder for Facebook Sign-In implementation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Facebook Sign-In is not configured yet"))
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    height = MediaQuery.of(context).size.height;
-    width = MediaQuery.of(context).size.width;
+    // Calculate dimensions only once per build
+    final mediaQuery = MediaQuery.of(context);
+    height = mediaQuery.size.height;
+    width = mediaQuery.size.width;
+    
     return Scaffold(
+      // Optimize scrolling performance with scrolling physics
       body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           children: [
-            Container(
-              height: height * 0.3,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF8A2387),
-                    Color(0xFFE94057),
-                    Color(0xFFF27121),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(100),
-                  bottomRight: Radius.circular(100),
-                ),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Welcome to Search a Holic',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 10.0,
-                            color: Colors.black,
-                            offset: Offset(2.0, 2.0),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Login',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 10.0,
-                            color: Colors.black,
-                            offset: Offset(2.0, 2.0),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildHeader(),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: formkey,
                 child: Column(
                   children: [
-                    TextFormField(
-                      controller: email,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email),
-                      ),
-                      validator: MultiValidator([
-                        RequiredValidator(errorText: "Required *"),
-                        EmailValidator(errorText: "Not a valid email"),
-                      ]).call,
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: password,
-                      obscureText: _isObscure,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock),
-                        suffixIcon: IconButton(
-                          icon: Icon(_isObscure
-                              ? Icons.visibility
-                              : Icons.visibility_off),
-                          onPressed: () {
-                            setState(() {
-                              _isObscure = !_isObscure;
-                            });
-                          },
-                        ),
-                      ),
-                      validator:
-                          RequiredValidator(errorText: "Required *").call,
-                    ),
+                    _buildEmailField(),
+                    const SizedBox(height: 16),
+                    _buildPasswordField(),
                     if (_errorMessage != null) ...[
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       Text(
                         _errorMessage!,
-                        style: TextStyle(color: Colors.red),
+                        style: const TextStyle(color: Colors.red),
                       ),
                     ],
-                    SizedBox(height: 20),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // Implement forgot password functionality
-                        },
-                        child: Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 238, 24, 52),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : onClickLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE94057),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                        child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                'Login',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                      ),
-                    ),
-                    SizedBox(height: 7),
-                    Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Don\'t have an account!',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const Registration()));
-                            },
-                            child: const Text(
-                              'Sign Up',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: Color.fromARGB(255, 238, 24, 52),
-                              ),
-                            ),
-                          ), // Add spacing between text and button
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 18),
-                    Center(
-                      child: Text(
-                        'Or login with',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.g_mobiledata,
-                            size: 50,
-                          ),
-                          color: Colors.red,
-                          onPressed: _handleGoogleSignIn,
-                        ),
-                        SizedBox(width: 10),
-                        IconButton(
-                          icon: Icon(
-                            Icons.facebook_outlined,
-                            size: 40,
-                          ),
-                          color: Colors.blue,
-                          onPressed: _handleFacebookSignIn,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const Search()));
-                      },
-                      child: Text('Continue as Guest',
-                          style: TextStyle(
-                              color: Color.fromARGB(255, 190, 82, 15))),
-                    ),
-                    SizedBox(height: 16),
+                    _buildForgotPassword(),
+                    const SizedBox(height: 20),
+                    _buildLoginButton(),
+                    const SizedBox(height: 7),
+                    _buildSignUpSection(),
+                    const SizedBox(height: 18),
+                    _buildSocialLoginSection(),
+                    const SizedBox(height: 16),
+                    _buildGuestLoginButton(),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Extracted widget methods for better readability and performance
+  Widget _buildHeader() {
+    return Container(
+      height: height * 0.3,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF8A2387),
+            Color(0xFFE94057),
+            Color(0xFFF27121),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(100),
+          bottomRight: Radius.circular(100),
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Welcome to Search a Holic',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    blurRadius: 10.0,
+                    color: Colors.black,
+                    offset: Offset(2.0, 2.0),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Login',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    blurRadius: 10.0,
+                    color: Colors.black,
+                    offset: Offset(2.0, 2.0),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmailField() {
+    return TextFormField(
+      controller: _email,
+      keyboardType: TextInputType.emailAddress,
+      decoration: const InputDecoration(
+        labelText: 'Email',
+        prefixIcon: Icon(Icons.email),
+      ),
+      validator: _emailValidator,
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return TextFormField(
+      controller: _password,
+      obscureText: _isObscure,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        prefixIcon: const Icon(Icons.lock),
+        suffixIcon: IconButton(
+          icon: Icon(_isObscure
+              ? Icons.visibility
+              : Icons.visibility_off),
+          onPressed: () {
+            setState(() {
+              _isObscure = !_isObscure;
+            });
+          },
+        ),
+      ),
+      validator: _passwordValidator,
+    );
+  }
+
+  Widget _buildForgotPassword() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () {
+          // Forgot password functionality
+        },
+        child: const Text(
+          'Forgot Password?',
+          style: TextStyle(
+            color: Color.fromARGB(255, 238, 24, 52),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : onClickLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE94057),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 20, 
+                height: 20, 
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                )
+              )
+            : const Text(
+                'Login',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSignUpSection() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Don\'t have an account!',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: Colors.grey,
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        const Registration()));
+          },
+          child: const Text(
+            'Sign Up',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: Color.fromARGB(255, 238, 24, 52),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialLoginSection() {
+    return Column(
+      children: [
+        const Text(
+          'Or login with',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.grey,
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Use IconButton with minimized rebuilds
+            IconButton(
+              icon: const Icon(
+                Icons.g_mobiledata,
+                size: 50,
+                color: Colors.red,
+              ),
+              onPressed: _handleGoogleSignIn,
+            ),
+            const SizedBox(width: 10),
+            IconButton(
+              icon: const Icon(
+                Icons.facebook_outlined,
+                size: 40,
+                color: Colors.blue,
+              ),
+              onPressed: _handleFacebookSignIn,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGuestLoginButton() {
+    return TextButton(
+      onPressed: () {
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const Search()));
+      },
+      child: const Text(
+        'Continue as Guest',
+        style: TextStyle(color: Color.fromARGB(255, 190, 82, 15)),
       ),
     );
   }

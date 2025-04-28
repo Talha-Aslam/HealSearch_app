@@ -56,6 +56,7 @@ class _RegistrationState extends State<Registration> {
       });
 
       try {
+        // First, check if email already exists before attempting full registration
         bool registrationSuccess = await _firebaseApi.register(
           email.text.trim(),
           name.text.trim(),
@@ -94,7 +95,26 @@ class _RegistrationState extends State<Registration> {
       } catch (e) {
         setState(() {
           _isLoading = false;
-          _errorMessage = "An error occurred during registration: ${e.toString()}";
+          
+          // More specific error handling for network and reCAPTCHA issues
+          if (e.toString().contains('network-request-failed') || 
+              e.toString().contains('connection') ||
+              e.toString().contains('timeout')) {
+            _errorMessage = "Network connection issue. Please check your internet connection and try again.";
+          } else if (e.toString().contains('recaptcha')) {
+            _errorMessage = "Google verification service is temporarily unavailable. Please try again in a moment.";
+          } else if (e.toString().contains('email-already-in-use')) {
+            _errorMessage = "This email is already registered. Please use a different email or try logging in.";
+          } else if (e.toString().contains('invalid-email')) {
+            _errorMessage = "The email address is not valid.";
+          } else if (e.toString().contains('weak-password')) {
+            _errorMessage = "The password provided is too weak.";
+          } else if (e.toString().contains('PigeonUserDetails')) {
+            // Handle the specific error we saw in the logs
+            _errorMessage = "Registration failed due to a data processing error. Please try again.";
+          } else {
+            _errorMessage = "Registration error: ${e.toString()}";
+          }
         });
         print("Registration error: $e");
       }

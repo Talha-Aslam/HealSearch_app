@@ -2,7 +2,8 @@
 
 // ignore_for_file: avoid_print
 
-import 'package:firedart/firedart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
 // import 'package:geolocator/geolocator.dart';
 // import 'package:geocoding/geocoding.dart';
 import 'package:encrypt/encrypt.dart' as ee;
@@ -13,7 +14,7 @@ import 'package:email_validator/email_validator.dart';
 // ignore: constant_identifier_names
 const api_key = "AIzaSyCjZK5ojHcJQh8Sr0sdMG0Nlnga4D94FME";
 // ignore: constant_identifier_names
-const project_id = "searchaholic-86248";
+const project_id = "healsearch-6565e";
 
 class User {
   // Instance Variables
@@ -36,40 +37,47 @@ class User {
     print("Function Called");
 
     try {
-      Firestore.instance.collection("appData");
-
-      await Firestore.instance.collection("appData").document(email).set({
+      await FirebaseFirestore.instance.collection("appData").doc(email).update({
         "location": GeoPoint(lat, lon),
       });
       print("Success");
-      return Future<bool>.value(true);
+      return true;
     } catch (e) {
-      return Future<bool>.value(false);
+      print("Error setting location: $e");
+      return false;
     }
   }
 
 // --------------------------
 // ---- GET LOCATION --------
 // --------------------------
-  Future<Document> getLocation() async {
+  Future<DocumentSnapshot?> getLocation() async {
     // Getting the User Location if exists
     // return the document if exists
-    if (await Firestore.instance.collection("appData").document(email).exists) {
-      var data = Firestore.instance.collection("appData").document(email).get();
-
-      // printing location
-      data.then((value) => {
-            print(value),
-            print(value["location"]),
-            print(value["location"]["lat"]),
-            print(value["location"]["lon"]),
-          });
-
-      return Future<Document>.value(data);
-    } else {
-      ("No Data Found");
-      // ignore: null_argument_to_non_null_type
-      return Future<Document>.value(null);
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection("appData")
+          .doc(email)
+          .get();
+          
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data.containsKey('location')) {
+          // printing location
+          print(data);
+          print(data["location"]);
+          GeoPoint geoPoint = data["location"];
+          print(geoPoint.latitude);
+          print(geoPoint.longitude);
+        }
+        return doc;
+      } else {
+        print("No Data Found");
+        return null;
+      }
+    } catch (e) {
+      print("Error getting location: $e");
+      return null;
     }
   }
 
@@ -78,23 +86,36 @@ class User {
 // --------------------------
   Future<bool> register() async {
     // Registering the user
-
-    if (await Firestore.instance.collection("appData").document(email).exists) {
-      print("User Already Exists");
-      return Future<bool>.value(false);
-    } else {
-      try {
-        Firestore.instance.collection("appData");
-        await Firestore.instance.collection("appData").document(email).set({
-          "email": email,
-          "password": password,
-          "phNo": phNo,
-        });
-        print("Success");
-        return Future<bool>.value(true);
-      } catch (e) {
-        return Future<bool>.value(false);
+    try {
+      // First check if the user already exists
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection("appData")
+          .doc(email)
+          .get();
+          
+      if (doc.exists) {
+        print("User Already Exists");
+        return false;
       }
+      
+      // Create user with Firebase Auth
+      await auth.FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      // Then save additional user data in Firestore
+      await FirebaseFirestore.instance.collection("appData").doc(email).set({
+        "email": email,
+        "password": encrypt(password),
+        "phNo": phNo,
+      });
+      
+      print("Registration Success");
+      return true;
+    } catch (e) {
+      print("Registration Error: $e");
+      return false;
     }
   }
 
@@ -102,23 +123,17 @@ class User {
 // ---- LOGIN  -----------
 // --------------------------
   Future<bool> login() async {
-    // Login the user
-
-    if (await Firestore.instance.collection("appData").document(email).exists) {
-      var data =
-          await Firestore.instance.collection("appData").document(email).get();
-      var password = decrypt(data["password"]);
-
-      if (data["password"] == password) {
-        print("Success");
-        return Future<bool>.value(true);
-      } else {
-        print("Wrong Password");
-        return Future<bool>.value(false);
-      }
-    } else {
-      print("No Data Found");
-      return Future<bool>.value(false);
+    // Login the user using Firebase Auth
+    try {
+      await auth.FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      print("Login Success");
+      return true;
+    } catch (e) {
+      print("Login Error: $e");
+      return false;
     }
   }
 

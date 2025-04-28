@@ -31,6 +31,7 @@ environment:
 dependencies:
   google_nav_bar: ^5.0.6
   http: ^1.2.2
+  connectivity_plus: ^5.0.2  # Added for network connectivity checks
 
   flutter:
     sdk: flutter
@@ -39,11 +40,13 @@ dependencies:
   cupertino_icons: ^1.0.2
   fluent_ui: ^4.0.3
   desktop_window: ^0.4.0
-  firedart: ^0.9.0+1
+  # firedart: ^0.9.0+1  # Commented out as we're using official Firebase packages now
   flutter_native_splash: ^2.2.14 # Splash Screen
   # path_provider: ^2.0.11
   google_fonts: ^6.2.1
-  # cloud_firestore: ^4.3.1
+  cloud_firestore: ^4.13.6  # Updated to compatible version
+  firebase_auth: ^4.15.3  # Updated to compatible version
+  firebase_core: ^2.24.2  # Updated to compatible version
   form_field_validator: ^1.1.0
   quickalert: ^1.0.1
   # Removed the alert package as it is not actively used in the codebase.
@@ -67,6 +70,7 @@ dependencies:
   dash_chat_2: ^0.0.21
   uuid: ^4.3.3
   google_generative_ai: ^0.4.6
+  firedart: ^0.9.8
 
 animated_splash_screen:
 

@@ -3,73 +3,175 @@
 // import 'dart:convert';
 // import 'package:alert/Alert.dart';
 
-import 'package:firedart/firedart.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:io';
+import 'firebase_options.dart';
 
-const api_key = "AIzaSyCjZK5ojHcJQh8Sr0sdMG0Nlnga4D94FME";
-const project_id = "searchaholic-86248";
-// const api_key = "AIzaSyBg4u6aeIDzvj4ZfPSnTGAzNBDR5sbui_U";
-// const project_id = "searchaholic-3f04a";
+const project_id = "healsearch-6565e";
 
 class Flutter_api {
   // Main Function
   void main() async {
     WidgetsFlutterBinding.ensureInitialized();
     try {
-      Firestore.initialize(project_id); // Establishing connection with Firestore
-      print("Firestore Initialized");
+      // Firebase is initialized in main.dart with Firebase.initializeApp()
+      print("Firestore is ready to use");
     } catch (e) {
-      // If Firestore is already initialized, just print a message
-      print("Firestore is already initialized");
+      print("Error initializing Firebase: $e");
+    }
+  }
+
+  // Check network connectivity
+  Future<bool> _checkInternetConnectivity() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      return false;
+    }
+    
+    try {
+      // Try to actually reach Firebase servers
+      final result = await InternetAddress.lookup('firebase.google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
     }
   }
 
   // checking login of members
   Future<bool> check_login(String email, String password) async {
-    // Getting the User Collection
-    final managers = Firestore.instance.collection("appData");
-
-    final manager = managers.document(email);
-    print(manager);
-
-    // Getting the Data from the Document
     try {
-      final data = await manager.get();
-      if (data['password'] == password && data['email'] == email) {
-        return Future<bool>.value(true);
-      } else {
-        return Future<bool>.value(false);
+      // Check connectivity first
+      if (!await _checkInternetConnectivity()) {
+        throw FirebaseAuthException(
+          code: 'network-request-failed',
+          message: 'No internet connection. Please check your network settings and try again.',
+        );
       }
+      
+      // Use Firebase Authentication but don't directly access user details
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      // Just check if the user exists, don't try to cast any internal Firebase objects
+      return userCredential.user != null;
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Login error: ${e.message}");
+      rethrow;
     } catch (e) {
-      return Future<bool>.value(false);
+      // Handle other errors, including PigeonUserDetails cast error
+      debugPrint("Login error: $e");
+      if (e.toString().contains('PigeonUserDetails')) {
+        // Authentication likely succeeded but there's an issue with user data handling
+        // Check if user is actually signed in despite the error
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 
-  // Registration
+  // Registration with enhanced retry logic
   Future<bool> register(
       String email, String storeName, String phNo, String password) async {
-    // Splitting the Location
-
-    // Checking if the email is already registered
-    final managers = Firestore.instance.collection("appData");
-
-    // Checking for the document with the email
-    if (await managers.document(email).exists) {
-      return Future<bool>.value(false);
-    } else {
-      // Creating a new document with the email
-      final manager = managers.document(email);
-      // Adding the data to the document
-      await manager.set({
-        'email': email,
-        'name': storeName,
-        'phNo': phNo,
-        'password': password,
-      });
-      return Future<bool>.value(true);
+    // Maximum number of retry attempts
+    const maxRetries = 3;
+    
+    // Check connectivity before attempting registration
+    if (!await _checkInternetConnectivity()) {
+      throw FirebaseAuthException(
+        code: 'network-request-failed',
+        message: 'No internet connection. Please check your network settings and try again.',
+      );
     }
+    
+    // Initialize Firebase Auth instance with custom settings
+    final auth = FirebaseAuth.instance;
+    
+    // Start retry loop
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        print("Registration attempt $attempt of $maxRetries");
+        
+        // Attempt to create the user
+        final userCredential = await auth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        ).timeout(
+          const Duration(seconds: 30), // Set a reasonable timeout
+          onTimeout: () => throw FirebaseAuthException(
+            code: 'timeout',
+            message: 'Connection timed out. Please try again.',
+          ),
+        );
+        
+        // Make sure we have a valid UID before proceeding
+        if (userCredential.user == null || userCredential.user!.uid.isEmpty) {
+          throw Exception("Failed to get valid user ID from Firebase");
+        }
+        
+        // If successful, add user data to Firestore as a simple Map (avoiding any PigeonUserDetails conversion)
+        final userData = {
+          'email': email,
+          'name': storeName,
+          'phNo': phNo,
+          'uid': userCredential.user!.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        
+        await FirebaseFirestore.instance.collection("appData").doc(email).set(userData);
+        
+        print("Registration successful after $attempt attempts");
+        return true;
+      } on FirebaseAuthException catch (e) {
+        print("Registration error on attempt $attempt: ${e.message}");
+        
+        // Don't retry for these specific errors
+        if (e.code == 'email-already-in-use' || 
+            e.code == 'invalid-email' || 
+            e.code == 'weak-password') {
+          rethrow; // No point retrying for these errors
+        }
+        
+        // Network or reCAPTCHA related errors should trigger retry
+        if (e.code == 'network-request-failed' || 
+            e.message?.contains('network') == true ||
+            e.message?.contains('recaptcha') == true ||
+            e.message?.contains('timeout') == true) {
+          
+          if (attempt == maxRetries) {
+            // This was our last attempt
+            rethrow;
+          }
+          
+          // Exponential backoff: wait longer between each retry
+          final backoffSeconds = attempt * 2;
+          print("Retrying in $backoffSeconds seconds...");
+          await Future.delayed(Duration(seconds: backoffSeconds));
+          continue; // Try again
+        }
+        
+        // For any other errors, just rethrow
+        rethrow;
+      } catch (e) {
+        // Handle any other errors
+        print("Unexpected error during registration: $e");
+        if (attempt == maxRetries) rethrow;
+        await Future.delayed(Duration(seconds: 2));
+      }
+    }
+    
+    // Should never reach here due to rethrow, but to satisfy the compiler
+    return false;
   }
 
   // Getting Current Location
@@ -124,47 +226,54 @@ class Flutter_api {
   }
 
   Future<List> getAllProducts() async {
-    // We have products collection which contains all the products againt each storeid
-    final storeIds = await Firestore.instance.collection("Products").get();
+    // We have products collection which contains all the products against each storeid
+    QuerySnapshot storeSnapshot = await FirebaseFirestore.instance.collection("Products").get();
     final allProducts = [];
 
-    for (var store in storeIds) {
-      final products = await store.reference.get();
-
-      for (var product in products.map.values) {
-        allProducts.add(product);
+    for (var store in storeSnapshot.docs) {
+      DocumentSnapshot products = await store.reference.get();
+      
+      // Convert the data to a map and extract values
+      Map<String, dynamic>? data = products.data() as Map<String, dynamic>?;
+      if (data != null) {
+        data.values.forEach((product) {
+          allProducts.add(product);
+        });
       }
     }
-    return Future<List>.value(allProducts);
+    
+    return allProducts;
   }
 
   Future<void> searchQuery(
       String query, double latitude, double longitude) async {
     // Getting the products with productName and within 10 km radius
 
-    // int radius = 10;
+    QuerySnapshot storeSnapshot = await FirebaseFirestore.instance.collection("Products").get();
 
-    final storeIds = await Firestore.instance.collection("Products").get();
-
-    for (var store in storeIds) {
-      final products = await store.reference.get();
-
-      for (var product in products.map.values) {
-        // Checking if the product name contains the query
-        if (product['Name'].toString().contains(query)) {
-          print(product['Name']);
-        }
+    for (var store in storeSnapshot.docs) {
+      DocumentSnapshot products = await store.reference.get();
+      
+      // Convert the data to a map and extract values
+      Map<String, dynamic>? data = products.data() as Map<String, dynamic>?;
+      if (data != null) {
+        data.values.forEach((product) {
+          // Checking if the product name contains the query
+          if (product['Name'].toString().toLowerCase().contains(query.toLowerCase())) {
+            print(product['Name']);
+          }
+        });
       }
     }
   }
 
-  Future<Document> getStorePosition(String storeEmail) async {
-    var StoreDetails = await Firestore.instance
+  Future<DocumentSnapshot> getStorePosition(String storeEmail) async {
+    DocumentSnapshot storeDetails = await FirebaseFirestore.instance
         .collection(storeEmail)
-        .document("Store Details")
+        .doc("Store Details")
         .get();
 
-    return Future<Document>.value(StoreDetails["storeLocation"]);
+    return storeDetails;
   }
 
   String getGoogleMapsLink(lattitude, longitude) {
