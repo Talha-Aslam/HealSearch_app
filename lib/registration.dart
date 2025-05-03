@@ -1,5 +1,6 @@
 import 'dart:async';
-
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/login_screen.dart';
@@ -25,6 +26,7 @@ class _RegistrationState extends State<Registration> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _isSuccess = false;
+  bool _isConnected = true;
 
   bool _isObscure = true;
   GlobalKey<FormState> formkey = GlobalKey<FormState>();
@@ -38,31 +40,85 @@ class _RegistrationState extends State<Registration> {
   @override
   void initState() {
     super.initState();
-    // Initialize Firebase connection
-    _firebaseApi.main();
+    // Check Firebase connection status
+    _checkConnectionStatus();
+  }
+
+  Future<void> _checkConnectionStatus() async {
+    try {
+      // Use the public connectivity check method from our API
+      bool isConnected = await _firebaseApi.checkInternetConnectivity();
+      setState(() {
+        _isConnected = isConnected;
+        if (!isConnected) {
+          _errorMessage = "No internet connection. Please check your network settings.";
+        }
+      });
+    } catch (e) {
+      print("Error checking connection: $e");
+      // Default to assuming we're connected if the check fails
+      setState(() {
+        _isConnected = true;
+      });
+    }
   }
 
   @override
   void dispose() {
+    // Clean up all controllers when the widget is disposed
+    email.dispose();
+    name.dispose();
+    phoneNumber.dispose();
+    password.dispose();
     _passwordFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _handleRegistration() async {
+    // First check if we're connected
+    if (!_isConnected) {
+      await _checkConnectionStatus();
+      if (!_isConnected) {
+        setState(() {
+          _errorMessage = "Cannot register while offline. Please check your internet connection.";
+        });
+        return;
+      }
+    }
+    
     if (formkey.currentState!.validate() && _isPasswordValid) {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
 
+      print("Starting registration with: Email=${email.text.trim()}, Name=${name.text.trim()}, Phone=${phoneNumber.text.trim()}");
       try {
-        // First, check if email already exists before attempting full registration
+        // Check if email is already registered before attempting registration
+        try {
+          final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(email.text.trim());
+          if (methods.isNotEmpty) {
+            // Email already exists, show error and don't attempt registration
+            setState(() {
+              _isLoading = false;
+              _errorMessage = "This email is already registered. Please use a different email or try logging in.";
+            });
+            return;
+          }
+        } catch (e) {
+          // If there's an error checking email existence, continue with registration attempt
+          print("Error checking email existence: $e");
+        }
+
+        // Attempt to register with Firebase
         bool registrationSuccess = await _firebaseApi.register(
           email.text.trim(),
           name.text.trim(),
           phoneNumber.text.trim(),
           password.text,
         );
+
+        print("Registration result: $registrationSuccess");
 
         if (registrationSuccess) {
           setState(() {
@@ -93,27 +149,33 @@ class _RegistrationState extends State<Registration> {
           });
         }
       } catch (e) {
+        print("Registration exception caught: ${e.toString()}");
         setState(() {
           _isLoading = false;
           
-          // More specific error handling for network and reCAPTCHA issues
-          if (e.toString().contains('network-request-failed') || 
+          // More specific error handling
+          if (e.toString().contains('email-already-in-use')) {
+            _errorMessage = "This email is already registered. Please use a different email or try logging in.";
+          } else if (e.toString().contains('network-request-failed') || 
               e.toString().contains('connection') ||
               e.toString().contains('timeout')) {
             _errorMessage = "Network connection issue. Please check your internet connection and try again.";
           } else if (e.toString().contains('recaptcha')) {
             _errorMessage = "Google verification service is temporarily unavailable. Please try again in a moment.";
-          } else if (e.toString().contains('email-already-in-use')) {
-            _errorMessage = "This email is already registered. Please use a different email or try logging in.";
           } else if (e.toString().contains('invalid-email')) {
             _errorMessage = "The email address is not valid.";
           } else if (e.toString().contains('weak-password')) {
             _errorMessage = "The password provided is too weak.";
+          } else if (e.toString().contains('verify user data')) {
+            // Handle data verification failures
+            _errorMessage = "Registration completed but there was an issue verifying your data. Please try logging in.";
+          } else if (e.toString().contains('Firestore')) {
+            // Handle Firestore specific errors
+            _errorMessage = "There was an issue saving your account data. Please try again or contact support.";
           } else if (e.toString().contains('PigeonUserDetails')) {
-            // Handle the specific error we saw in the logs
-            _errorMessage = "Registration failed due to a data processing error. Please try again.";
+            _errorMessage = "This email may already be registered. Please try a different email or log in.";
           } else {
-            _errorMessage = "Registration error: ${e.toString()}";
+            _errorMessage = "Registration error: ${e.toString().replaceAll(RegExp(r'Exception: '), '')}";
           }
         });
         print("Registration error: $e");
@@ -343,15 +405,18 @@ class _RegistrationState extends State<Registration> {
           if (value == null || value.isEmpty) {
             return 'Phone number is required';
           }
-          // Basic phone validation
-          if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(value)) {
+          
+          // More comprehensive phone validation
+          // Allows for international formats with country codes, spaces, dashes, and parentheses
+          final cleanedNumber = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+          if (!RegExp(r'^\+?[0-9]{8,15}$').hasMatch(cleanedNumber)) {
             return 'Please enter a valid phone number';
           }
           return null;
         },
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.phone_iphone_rounded, size: 20),
-          hintText: "Phone Number",
+          hintText: "Phone Number (e.g. +1 234 567 8900)",
           hintStyle: TextStyle(
             fontSize: 15,
             color: Colors.grey[450],

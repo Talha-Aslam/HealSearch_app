@@ -11,8 +11,8 @@ class Androidsmall1Widget extends StatefulWidget {
   late final String expiryDate;
   late final String price;
   late final String storeName;
-  late final String lat;
-  late final String long;
+  late final double lat;
+  late final double long;
 
   Androidsmall1Widget({super.key, required this.lat, required this.long});
 
@@ -27,8 +27,8 @@ class Androidsmall1Widget extends StatefulWidget {
 class _Androidsmall1WidgetState extends State<Androidsmall1Widget> {
   // Getting maps link from Widget
 
-  late String lat = widget.lat;
-  late String long = widget.long;
+  late double lat = widget.lat;
+  late double long = widget.long;
 
   static void navigateTo(double lat, double lng) async {
     var uri = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
@@ -278,13 +278,8 @@ class _Androidsmall1WidgetState extends State<Androidsmall1Widget> {
                       left: 18,
                       child: TextButton(
                           onPressed: () {
-                            // Adding link to google maps
-
-                            // Converting String to double
-                            double lat = double.parse(widget.lat);
-                            double long = double.parse(widget.long);
-
-                            navigateTo(lat, long);
+                            // The lat and long variables are already double, no need to parse
+                            navigateTo(widget.lat, widget.long);
                           },
                           style: ButtonStyle(
                             backgroundColor: MaterialStateProperty.all<Color>(

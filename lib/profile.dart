@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:healsearch_app/data.dart';
+import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/login_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:healsearch_app/showProfile.dart';
 import 'package:healsearch_app/updateProfile.dart';
 
@@ -20,6 +21,9 @@ class _ProfileState extends State<Profile> {
   String? phoneNumber;
   bool isLoading = false;
   String? errorMessage;
+  
+  // Create instance of our Firebase API wrapper
+  final _firebaseApi = Flutter_api();
 
   Future<void> getprofile() async {
     setState(() {
@@ -30,18 +34,15 @@ class _ProfileState extends State<Profile> {
     // Only fetch from Firebase if logged in
     if (appData.isLoggedIn && appData.Email != "You are not logged in") {
       try {
-        DocumentSnapshot userData = await FirebaseFirestore.instance
-            .collection("appData")
-            .doc(appData.Email)
-            .get();
-
-        if (userData.exists) {
-          Map<String, dynamic>? data = userData.data() as Map<String, dynamic>?;
-          
+        // Use our improved getUserData method with caching
+        final userData = await _firebaseApi.getUserData();
+        
+        if (userData != null) {
           setState(() {
-            name = data?['name'];
-            email = data?['email'];
-            phoneNumber = data?['phNo'];
+            name = userData['name'];
+            email = userData['email'];
+            // Handle different field names for phone number
+            phoneNumber = userData['phoneNumber'] ?? userData['phNo'];
             isLoading = false;
           });
         } else {
@@ -70,7 +71,9 @@ class _ProfileState extends State<Profile> {
 
   void _handleLogout() async {
     try {
-      await FirebaseAuth.instance.signOut();
+      // Use our improved signOut method
+      await _firebaseApi.signOut();
+      
       appData.clearUserData();
       Navigator.pushReplacement(
         context,
@@ -103,20 +106,37 @@ class _ProfileState extends State<Profile> {
                 // Delete user profile
                 if (appData.isLoggedIn && appData.Email != "You are not logged in") {
                   try {
-                    // First delete the user data from Firestore
-                    await FirebaseFirestore.instance
-                        .collection("appData")
-                        .doc(appData.Email)
-                        .delete();
-                    
-                    // Then delete the Firebase Auth user
-                    try {
-                      await FirebaseAuth.instance.currentUser?.delete();
-                    } catch (authError) {
-                      print("Error deleting auth user: $authError");
-                      // Proceed anyway since we deleted the Firestore data
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      // Use a batch operation to delete user data from both collections
+                      final batch = FirebaseFirestore.instance.batch();
+                      
+                      // Delete from users collection
+                      batch.delete(
+                        FirebaseFirestore.instance.collection(FirestoreCollections.users).doc(user.uid)
+                      );
+                      
+                      // Delete from legacy appData collection if email is available
+                      if (appData.Email != null && appData.Email.isNotEmpty) {
+                        batch.delete(
+                          FirebaseFirestore.instance.collection(FirestoreCollections.appData).doc(appData.Email)
+                        );
+                      }
+                      
+                      // Commit batch operation
+                      await batch.commit();
+                      
+                      // Then delete the Firebase Auth user
+                      try {
+                        await user.delete();
+                      } catch (authError) {
+                        print("Error deleting auth user: $authError");
+                        // Proceed anyway since we deleted the Firestore data
+                      }
                     }
                     
+                    // Clear cache and user data
+                    _firebaseApi.clearCaches();
                     appData.clearUserData();
                     
                     Navigator.of(context).pop(); // Close dialog
@@ -162,7 +182,7 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       body: appData.isLoggedIn
           ? isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
                   child: Column(
                     children: [
@@ -236,7 +256,7 @@ class _ProfileState extends State<Profile> {
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
                             errorMessage!,
-                            style: TextStyle(color: Colors.red),
+                            style: const TextStyle(color: Colors.red),
                           ),
                         ),
                       const SizedBox(height: 20),
@@ -256,7 +276,7 @@ class _ProfileState extends State<Profile> {
                               label: const Text('Show Profile'),
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: Color.fromARGB(255, 190, 82, 15),
+                                backgroundColor: const Color.fromARGB(255, 190, 82, 15),
                                 textStyle: const TextStyle(fontSize: 16),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 12, horizontal: 20),
@@ -278,7 +298,7 @@ class _ProfileState extends State<Profile> {
                               label: const Text('Update Profile'),
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: Color.fromARGB(188, 255, 140, 0),
+                                backgroundColor: const Color.fromARGB(188, 255, 140, 0),
                                 textStyle: const TextStyle(fontSize: 16),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 12, horizontal: 20),

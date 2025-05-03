@@ -4,12 +4,9 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
-// import 'package:geolocator/geolocator.dart';
-// import 'package:geocoding/geocoding.dart';
 import 'package:encrypt/encrypt.dart' as ee;
-// config file (in lib folder)
 import 'package:email_validator/email_validator.dart';
-// import 'package:flutter_pw_validator/flutter_pw_validator.dart';
+import '../firebase_database.dart';
 
 // ignore: constant_identifier_names
 const api_key = "AIzaSyCjZK5ojHcJQh8Sr0sdMG0Nlnga4D94FME";
@@ -21,11 +18,16 @@ class User {
   String email;
   String password;
   String phNo;
+  String? uid; // Adding UID for reference
 
   final key = "%D*G-JaNdRgUkXp2";
+  
+  // Firebase references
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final auth.FirebaseAuth _auth = auth.FirebaseAuth.instance;
 
   // Constructor
-  User({required this.email, this.password = "", this.phNo = ""});
+  User({required this.email, this.password = "", this.phNo = "", this.uid});
 
   // -----------------------
   // ----- SET LOCATION ----
@@ -34,13 +36,52 @@ class User {
     // set user location
     // return true if success
     // return false if failed
-    print("Function Called");
+    print("Setting user location");
 
     try {
-      await FirebaseFirestore.instance.collection("appData").doc(email).update({
+      // Get the current user, either from parameter or from Firebase Auth
+      final currentUser = _auth.currentUser;
+      if (currentUser == null && uid == null) {
+        print("No user is logged in and no UID provided");
+        return false;
+      }
+      
+      final userUid = uid ?? currentUser!.uid;
+      
+      final locationData = {
         "location": GeoPoint(lat, lon),
-      });
-      print("Success");
+        "updatedAt": FieldValue.serverTimestamp(),
+      };
+      
+      // Get address information for the location
+      try {
+        // Use Firebase API to get address
+        Flutter_api api = Flutter_api();
+        final address = await api.getAddress(lat, lon);
+        locationData["address"] = address;
+      } catch (e) {
+        print("Could not fetch address for location: $e");
+        // Continue anyway, the location coordinates are more important
+      }
+      
+      // Use a batch for atomic updates
+      WriteBatch batch = _firestore.batch();
+      
+      // Update in users collection
+      batch.update(
+        _firestore.collection(FirestoreCollections.users).doc(userUid),
+        locationData
+      );
+      
+      // Update in legacy collection
+      batch.update(
+        _firestore.collection(FirestoreCollections.appData).doc(email),
+        locationData
+      );
+      
+      await batch.commit();
+      
+      print("Location updated successfully");
       return true;
     } catch (e) {
       print("Error setting location: $e");
@@ -48,143 +89,136 @@ class User {
     }
   }
 
-// --------------------------
-// ---- GET LOCATION --------
-// --------------------------
-  Future<DocumentSnapshot?> getLocation() async {
+  // --------------------------
+  // ---- GET LOCATION --------
+  // --------------------------
+  Future<Map<String, dynamic>?> getLocation() async {
     // Getting the User Location if exists
-    // return the document if exists
     try {
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection("appData")
+      // Try to get location from users collection first
+      if (uid != null) {
+        DocumentSnapshot userDoc = await _firestore
+            .collection(FirestoreCollections.users)
+            .doc(uid)
+            .get();
+            
+        if (userDoc.exists) {
+          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          if (userData.containsKey('location')) {
+            return {
+              'location': userData['location'],
+              'address': userData['address'] ?? 'Unknown location'
+            };
+          }
+        }
+      }
+      
+      // Fall back to legacy collection if needed
+      DocumentSnapshot legacyDoc = await _firestore
+          .collection(FirestoreCollections.appData)
           .doc(email)
           .get();
           
-      if (doc.exists) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      if (legacyDoc.exists) {
+        Map<String, dynamic> data = legacyDoc.data() as Map<String, dynamic>;
         if (data.containsKey('location')) {
-          // printing location
-          print(data);
-          print(data["location"]);
-          GeoPoint geoPoint = data["location"];
-          print(geoPoint.latitude);
-          print(geoPoint.longitude);
+          GeoPoint geoPoint = data['location'];
+          print("Location found: ${geoPoint.latitude}, ${geoPoint.longitude}");
+          return {
+            'location': data['location'],
+            'address': data['address'] ?? 'Unknown location'
+          };
         }
-        return doc;
-      } else {
-        print("No Data Found");
-        return null;
       }
+      
+      print("No location data found for user");
+      return null;
     } catch (e) {
       print("Error getting location: $e");
       return null;
     }
   }
 
-// --------------------------
-// ---- REGISTER  -----------
-// --------------------------
+  // --------------------------
+  // ---- REGISTER  -----------
+  // --------------------------
   Future<bool> register() async {
-    // Registering the user
+    // Use the improved registration method from Flutter_api
     try {
-      // First check if the user already exists
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection("appData")
-          .doc(email)
-          .get();
-          
-      if (doc.exists) {
-        print("User Already Exists");
-        return false;
+      Flutter_api api = Flutter_api();
+      final success = await api.register(email, "", phNo, password);
+      
+      if (success) {
+        // Update the UID property with the current user's UID
+        final currentUser = api.getCurrentUser();
+        if (currentUser != null) {
+          uid = currentUser.uid;
+        }
       }
       
-      // Create user with Firebase Auth
-      await auth.FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      
-      // Then save additional user data in Firestore
-      await FirebaseFirestore.instance.collection("appData").doc(email).set({
-        "email": email,
-        "password": encrypt(password),
-        "phNo": phNo,
-      });
-      
-      print("Registration Success");
-      return true;
+      return success;
     } catch (e) {
-      print("Registration Error: $e");
+      print("Registration error: $e");
       return false;
     }
   }
 
-// --------------------------
-// ---- LOGIN  -----------
-// --------------------------
+  // --------------------------
+  // ---- LOGIN  -----------
+  // --------------------------
   Future<bool> login() async {
-    // Login the user using Firebase Auth
+    // Use the improved login method from Flutter_api
     try {
-      await auth.FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      print("Login Success");
-      return true;
+      Flutter_api api = Flutter_api();
+      final success = await api.check_login(email, password);
+      
+      if (success) {
+        // Update the UID property with the current user's UID
+        final currentUser = api.getCurrentUser();
+        if (currentUser != null) {
+          uid = currentUser.uid;
+        }
+      }
+      
+      return success;
     } catch (e) {
-      print("Login Error: $e");
+      print("Login error: $e");
       return false;
     }
   }
 
-// -------------------------
-// --- PASSWORD ENCRYPTION--
-// -------------------------
-
+  // -------------------------
+  // --- PASSWORD ENCRYPTION--
+  // -------------------------
   String encrypt(String plainText) {
     // Encrypting the password
-    // return the encrypted password
-    final newKey =
-        ee.Key.fromUtf8(key); // 32 bytes for AES-256, 16 bytes for AES-128
+    final newKey = ee.Key.fromUtf8(key); // 16 bytes for AES-128
     final iv = ee.IV.fromLength(16);
 
-    print(newKey);
-
     final encrypter = ee.Encrypter(ee.AES(newKey));
-
     final encrypted = encrypter.encrypt(plainText, iv: iv);
     return encrypted.base64;
   }
 
   String decrypt(String encryptedText) {
     // Decrypting the password
-    // return the decrypted password
     final newKey = ee.Key.fromUtf8(key);
     final iv = ee.IV.fromLength(16);
 
     final encrypter = ee.Encrypter(ee.AES(newKey));
-
     final decrypted = encrypter.decrypt64(encryptedText, iv: iv);
     return decrypted;
   }
 
-// -------------------------
-// -------- VALIDATION -----
-// -------------------------
-
-// Email Validation
+  // -------------------------
+  // -------- VALIDATION -----
+  // -------------------------
+  // Email Validation
   bool validateEmail() {
-    // Validate the email
-    // return true if valid
-    // return false if invalid
-    if (EmailValidator.validate(email)) {
-      return true;
-    } else {
-      return false;
-    }
+    return EmailValidator.validate(email);
   }
 
-// Password Validation
+  // Password Validation
   bool validatePassword(String password, [int minLength = 6]) {
     if (password.isEmpty) {
       return false;
@@ -192,13 +226,50 @@ class User {
     bool hasUppercase = password.contains(RegExp(r'[A-Z]'));
     bool hasDigits = password.contains(RegExp(r'[0-9]'));
     bool hasLowercase = password.contains(RegExp(r'[a-z]'));
-    password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
     bool hasMinLength = password.length >= minLength;
 
-    return hasDigits &
-        hasUppercase &
-        hasLowercase &
-        // hasSpecialCharacters &
-        hasMinLength;
+    return hasDigits & hasUppercase & hasLowercase & hasMinLength;
+  }
+  
+  // Get user data from Firebase
+  Future<Map<String, dynamic>?> getUserData() async {
+    try {
+      Flutter_api api = Flutter_api();
+      return await api.getUserData();
+    } catch (e) {
+      print("Error getting user data: $e");
+      return null;
+    }
+  }
+  
+  // Update user profile
+  Future<bool> updateProfile({
+    String? name,
+    String? phoneNumber,
+    String? profileImage,
+    Map<String, dynamic>? additionalData,
+  }) async {
+    try {
+      Flutter_api api = Flutter_api();
+      return await api.updateUserProfile(
+        name: name,
+        phoneNumber: phoneNumber,
+        profileImage: profileImage,
+        additionalData: additionalData,
+      );
+    } catch (e) {
+      print("Error updating profile: $e");
+      return false;
+    }
+  }
+  
+  // Sign out
+  Future<void> signOut() async {
+    try {
+      Flutter_api api = Flutter_api();
+      await api.signOut();
+    } catch (e) {
+      print("Error signing out: $e");
+    }
   }
 }

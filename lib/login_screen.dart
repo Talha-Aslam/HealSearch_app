@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:healsearch_app/data.dart';
-import 'package:healsearch_app/firebase_database.dart';
+import 'package:healsearch_app/firebase_database.dart' as firebase_db;
 import 'package:healsearch_app/registration.dart';
 import 'package:healsearch_app/search_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -24,7 +23,7 @@ class _LoginState extends State<Login> {
   bool _isLoading = false;
   double height = 0, width = 0;
   // Create an instance of our Firebase API wrapper
-  final _firebaseApi = Flutter_api();
+  final _firebaseApi = firebase_db.Flutter_api();
   String? _errorMessage;
   
   // Cache form validators to avoid rebuilding them
@@ -53,7 +52,7 @@ class _LoginState extends State<Login> {
     });
     
     try {
-      // Run authentication in a separate isolate or compute function if possible
+      // Use our improved login method
       bool loginSuccess = await _firebaseApi.check_login(
         _email.text.trim(),
         _password.text,
@@ -64,27 +63,26 @@ class _LoginState extends State<Login> {
       
       if (loginSuccess) {
         try {
-          // Make sure we have a valid Firebase user
-          final currentUser = FirebaseAuth.instance.currentUser;
-          if (currentUser == null) {
-            throw Exception("User authentication succeeded but no user data available");
-          }
-          
-          // Fetch user data efficiently with timeout
-          final userDoc = await FirebaseFirestore.instance
-              .collection("appData")
-              .doc(_email.text.trim())
-              .get()
-              .timeout(const Duration(seconds: 10));
+          // Use our improved API to fetch user data with caching
+          final userData = await _firebaseApi.getUserData();
           
           if (!mounted) return;
           
-          // Set user data in our global AppData object
-          appData.setUserData(
-            _email.text.trim(),
-            userDoc.data()?['name'] ?? "User",
-            userDoc.data()?['phNo'] ?? "",
-          );
+          if (userData != null) {
+            // Set user data in our global AppData object
+            appData.setUserData(
+              _email.text.trim(),
+              userData['name'] ?? "User",
+              userData['phoneNumber'] ?? userData['phNo'] ?? "",
+            );
+          } else {
+            // If we couldn't get user data, set minimal information
+            appData.setUserData(
+              _email.text.trim(),
+              "User",
+              "",
+            );
+          }
           
           // Only update state if still mounted
           if (mounted) {
@@ -102,6 +100,28 @@ class _LoginState extends State<Login> {
         } catch (e) {
           if (mounted) {
             debugPrint("Error fetching user data: $e");
+            
+            // Handle PigeonUserDetails type casting error specifically
+            if (e.toString().contains('PigeonUserDetails')) {
+              // Set minimal user information when facing the PigeonUserDetails error
+              appData.setUserData(
+                _email.text.trim(),
+                "User",
+                "",
+              );
+              
+              setState(() {
+                _isLoading = false;
+              });
+              
+              // Navigate to search screen despite the error
+              Navigator.pushAndRemoveUntil(
+                context, 
+                MaterialPageRoute(builder: (context) => const Search()),
+                (route) => false,
+              );
+              return;
+            }
             
             // Still navigate to search screen even if we couldn't fetch complete profile data
             // This prevents login issues due to profile data access problems
@@ -438,6 +458,13 @@ class _LoginState extends State<Login> {
   Widget _buildGuestLoginButton() {
     return TextButton(
       onPressed: () {
+        // Let users know they're in guest mode with limited access
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Guest mode: Some features like profile will require login'),
+            duration: Duration(seconds: 3),
+          ),
+        );
         Navigator.pushReplacement(
             context,
             MaterialPageRoute(

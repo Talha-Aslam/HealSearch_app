@@ -1,7 +1,6 @@
-// ignore_for_file: avoid_print, camel_case_types, non_constant_identifier_names
-// ignore_for_file: constant_identifier_names
-// import 'dart:convert';
-// import 'package:alert/Alert.dart';
+// ignore_for_file: avoid_print, camel_case_types
+
+import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,12 +10,43 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io';
+import 'dart:async';
 import 'firebase_options.dart';
 
-const project_id = "healsearch-6565e";
+/// Class containing all Firestore collection names to ensure consistency
+class FirestoreCollections {
+  static const String users = "users";
+  static const String appData = "appData"; // Legacy collection, kept for backward compatibility
+  static const String products = "Products";
+  static const String stores = "stores";
+  static const String userLocations = "user_locations";
+  static const String searchHistory = "search_history";
+}
 
+/// Main API class for Firebase operations
 class Flutter_api {
-  // Main Function
+  // Singleton instance
+  static final Flutter_api _instance = Flutter_api._internal();
+  
+  // Factory constructor
+  factory Flutter_api() => _instance;
+  
+  // Internal constructor
+  Flutter_api._internal();
+  
+  // Local cache for user data
+  final Map<String, dynamic> _userDataCache = {};
+  final Map<String, dynamic> _productsCache = {};
+  DateTime? _productsCacheTime;
+  
+  // Cache expiration duration
+  static const Duration _cacheDuration = Duration(minutes: 15);
+  
+  // Firestore instance
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  
+  // Main initialization function
   void main() async {
     WidgetsFlutterBinding.ensureInitialized();
     try {
@@ -27,23 +57,43 @@ class Flutter_api {
     }
   }
 
-  // Check network connectivity
+  // Clear all caches - useful when signing out
+  void clearCaches() {
+    _userDataCache.clear();
+    _productsCache.clear();
+    _productsCacheTime = null;
+  }
+
+  // Public method to check internet connectivity
+  Future<bool> checkInternetConnectivity() async {
+    return _checkInternetConnectivity();
+  }
+
+  // Check network connectivity with timeout
   Future<bool> _checkInternetConnectivity() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      return false;
-    }
-    
     try {
+      final connectivityResult = await Connectivity().checkConnectivity()
+          .timeout(const Duration(seconds: 5));
+      
+      if (connectivityResult == ConnectivityResult.none) {
+        return false;
+      }
+      
       // Try to actually reach Firebase servers
-      final result = await InternetAddress.lookup('firebase.google.com');
+      final result = await InternetAddress.lookup('firebase.google.com')
+          .timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
+    } on TimeoutException {
+      return false;
+    } on SocketException {
+      return false;
+    } catch (e) {
+      print("Error checking connectivity: $e");
       return false;
     }
   }
 
-  // checking login of members
+  // Check login with proper error handling
   Future<bool> check_login(String email, String password) async {
     try {
       // Check connectivity first
@@ -54,60 +104,108 @@ class Flutter_api {
         );
       }
       
-      // Use Firebase Authentication but don't directly access user details
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // Use Firebase Authentication
+      final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       
-      // Just check if the user exists, don't try to cast any internal Firebase objects
-      return userCredential.user != null;
+      // Check if user exists
+      if (userCredential.user != null) {
+        final uid = userCredential.user!.uid;
+        
+        // Update the last login time in Firestore using a transaction
+        try {
+          await _firestore.runTransaction((transaction) async {
+            DocumentReference userRef = _firestore.collection(FirestoreCollections.users).doc(uid);
+            transaction.update(userRef, {
+              'lastLogin': FieldValue.serverTimestamp(),
+              'isActive': true
+            });
+          });
+          
+          // Update legacy collection for backward compatibility
+          try {
+            await _firestore.collection(FirestoreCollections.appData).doc(email).update({
+              'lastLogin': FieldValue.serverTimestamp(),
+            });
+          } catch (e) {
+            // Ignore errors with legacy collection
+          }
+        } catch (e) {
+          // If updating the timestamp fails, we still want to consider the login successful
+          // but we should log the error
+          debugPrint("Failed to update last login time: $e");
+        }
+        
+        // Clear and pre-populate the user data cache
+        await getUserData(forceRefresh: true);
+        
+        return true;
+      }
+      return false;
     } on FirebaseAuthException catch (e) {
       debugPrint("Login error: ${e.message}");
       rethrow;
     } catch (e) {
-      // Handle other errors, including PigeonUserDetails cast error
+      // Handle other errors
       debugPrint("Login error: $e");
-      if (e.toString().contains('PigeonUserDetails')) {
-        // Authentication likely succeeded but there's an issue with user data handling
-        // Check if user is actually signed in despite the error
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null) {
-          return true;
-        }
+      
+      // Check if user is actually signed in despite the error
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        return true;
       }
+      
       return false;
     }
   }
 
-  // Registration with enhanced retry logic
+  // Registration with enhanced retry logic and transaction support
   Future<bool> register(
       String email, String storeName, String phNo, String password) async {
     // Maximum number of retry attempts
     const maxRetries = 3;
     
+    print("Starting registration process for email: $email");
+    
     // Check connectivity before attempting registration
     if (!await _checkInternetConnectivity()) {
+      print("Registration failed: No internet connection");
       throw FirebaseAuthException(
         code: 'network-request-failed',
         message: 'No internet connection. Please check your network settings and try again.',
       );
     }
     
-    // Initialize Firebase Auth instance with custom settings
-    final auth = FirebaseAuth.instance;
-    
     // Start retry loop
     for (var attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         print("Registration attempt $attempt of $maxRetries");
         
+        // Check if email already exists in Firebase Auth
+        try {
+          final methods = await _auth.fetchSignInMethodsForEmail(email);
+          if (methods.isNotEmpty) {
+            throw FirebaseAuthException(
+              code: 'email-already-in-use',
+              message: 'The email address is already in use by another account.',
+            );
+          }
+        } catch (e) {
+          if (e is FirebaseAuthException && e.code == 'email-already-in-use') {
+            rethrow;
+          }
+          // Other errors with fetching sign-in methods can be ignored
+        }
+        
         // Attempt to create the user
-        final userCredential = await auth.createUserWithEmailAndPassword(
+        print("Creating user account with Firebase Authentication...");
+        final userCredential = await _auth.createUserWithEmailAndPassword(
           email: email,
           password: password,
         ).timeout(
-          const Duration(seconds: 30), // Set a reasonable timeout
+          const Duration(seconds: 30),
           onTimeout: () => throw FirebaseAuthException(
             code: 'timeout',
             message: 'Connection timed out. Please try again.',
@@ -116,24 +214,97 @@ class Flutter_api {
         
         // Make sure we have a valid UID before proceeding
         if (userCredential.user == null || userCredential.user!.uid.isEmpty) {
+          print("Failed to get valid user ID from Firebase");
           throw Exception("Failed to get valid user ID from Firebase");
         }
         
-        // If successful, add user data to Firestore as a simple Map (avoiding any PigeonUserDetails conversion)
+        // Get the user UID for use as document ID
+        final String uid = userCredential.user!.uid;
+        print("User created successfully with UID: $uid");
+        
+        // Create comprehensive user data object
         final userData = {
+          'uid': uid,
           'email': email,
           'name': storeName,
-          'phNo': phNo,
-          'uid': userCredential.user!.uid,
+          'phoneNumber': phNo,
           'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'profileComplete': false,
+          'isActive': true,
+          'accountType': 'user',
+          'registrationCompleted': true,
+          'registrationDate': FieldValue.serverTimestamp(),
         };
         
-        await FirebaseFirestore.instance.collection("appData").doc(email).set(userData);
+        print("Preparing to save user data to Firestore...");
+        
+        // Use a transaction instead of batch for stronger consistency guarantees
+        bool writeSuccess = false;
+        try {
+          await _firestore.runTransaction((transaction) async {
+            // Store user data in a 'users' collection with UID as document ID
+            DocumentReference userRef = _firestore.collection(FirestoreCollections.users).doc(uid);
+            transaction.set(userRef, userData);
+            
+            // Also maintain backward compatibility with existing code by keeping the appData collection
+            DocumentReference legacyRef = _firestore.collection(FirestoreCollections.appData).doc(email);
+            transaction.set(legacyRef, {
+              'email': email,
+              'name': storeName,
+              'phNo': phNo,
+              'uid': uid,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            
+            writeSuccess = true;
+          }, maxAttempts: 3);
+        } catch (e) {
+          print("Error during Firestore transaction: $e");
+          writeSuccess = false;
+          throw Exception("Failed to save user data to Firestore: $e");
+        }
+        
+        if (!writeSuccess) {
+          print("Firestore transaction didn't complete successfully");
+          throw Exception("Failed to save user data to Firestore");
+        }
+        
+        print("Firestore transaction completed successfully");
+        
+        // Verify write was successful by reading data back
+        try {
+          DocumentSnapshot verifyDoc = await _firestore.collection(FirestoreCollections.users).doc(uid).get();
+          
+          if (!verifyDoc.exists) {
+            print("ERROR: User document was not written to Firestore successfully");
+            // If primary write failed, don't continue
+            throw Exception("Failed to verify user data in Firestore");
+          }
+          
+          // Further verify that critical fields exist
+          final verifyData = verifyDoc.data() as Map<String, dynamic>?;
+          if (verifyData == null || 
+              verifyData['email'] != email || 
+              verifyData['name'] != storeName) {
+            print("ERROR: User data in Firestore is inconsistent");
+            throw Exception("User data verification failed - inconsistent data");
+          }
+          
+          print("User data successfully verified in Firestore");
+        } catch (e) {
+          print("Error verifying user data: $e");
+          throw Exception("Failed to verify user data: $e");
+        }
         
         print("Registration successful after $attempt attempts");
+        
+        // Add user to cache for faster future access
+        _userDataCache[uid] = userData;
+        
         return true;
       } on FirebaseAuthException catch (e) {
-        print("Registration error on attempt $attempt: ${e.message}");
+        print("Registration error on attempt $attempt: [${e.code}] ${e.message}");
         
         // Don't retry for these specific errors
         if (e.code == 'email-already-in-use' || 
@@ -150,6 +321,7 @@ class Flutter_api {
           
           if (attempt == maxRetries) {
             // This was our last attempt
+            print("Maximum retry attempts reached. Registration failed.");
             rethrow;
           }
           
@@ -160,22 +332,26 @@ class Flutter_api {
           continue; // Try again
         }
         
-        // For any other errors, just rethrow
+        // For any other errors, log and rethrow
+        print("Unhandled Firebase Auth error: ${e.code} - ${e.message}");
         rethrow;
       } catch (e) {
         // Handle any other errors
         print("Unexpected error during registration: $e");
-        if (attempt == maxRetries) rethrow;
+        if (attempt == maxRetries) {
+          print("Maximum retry attempts reached. Registration failed due to: $e");
+          rethrow;
+        }
         await Future.delayed(Duration(seconds: 2));
       }
     }
     
     // Should never reach here due to rethrow, but to satisfy the compiler
+    print("Registration failed for unknown reasons");
     return false;
   }
 
   // Getting Current Location
-
   /// Determine the current position of the device.
   ///
   /// When the location services are not enabled or permissions
@@ -218,65 +394,528 @@ class Flutter_api {
   }
 
   // Getting the Address from the Location
-  Future<String> getAddress(lat, lon) async {
-    List<Placemark> placemarks = await placemarkFromCoordinates(lat, lon);
-    Placemark place = placemarks[0];
-    String address = "${place.locality}, ${place.country}";
-    return address;
+  Future<String> getAddress(double lat, double lon) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lon);
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String address = "${place.locality ?? ''}, ${place.country ?? ''}";
+        return address.trim().isEmpty ? "Unknown location" : address;
+      }
+      return "Unknown location";
+    } catch (e) {
+      print("Error getting address: $e");
+      return "Error getting address";
+    }
+  }
+  
+  // Save user location to Firestore
+  Future<bool> saveUserLocation(String email, double lat, double lon, {String? address}) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+      
+      final locationData = {
+        'location': GeoPoint(lat, lon),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      
+      if (address != null) {
+        locationData['address'] = address;
+      } else {
+        // Try to get address if not provided
+        try {
+          locationData['address'] = await getAddress(lat, lon);
+        } catch (_) {
+          // Ignore errors getting address
+        }
+      }
+      
+      // Save to both collections for compatibility
+      WriteBatch batch = _firestore.batch();
+      
+      // Save to user document
+      batch.update(
+        _firestore.collection(FirestoreCollections.users).doc(user.uid),
+        locationData
+      );
+      
+      // Save to legacy appData collection
+      batch.update(
+        _firestore.collection(FirestoreCollections.appData).doc(email),
+        locationData
+      );
+      
+      await batch.commit();
+      
+      // Update cache
+      if (_userDataCache.containsKey(user.uid)) {
+        _userDataCache[user.uid]?['location'] = locationData['location'];
+        _userDataCache[user.uid]?['address'] = locationData['address'];
+      }
+      
+      return true;
+    } catch (e) {
+      print("Error saving location: $e");
+      return false;
+    }
   }
 
-  Future<List> getAllProducts() async {
-    // We have products collection which contains all the products against each storeid
-    QuerySnapshot storeSnapshot = await FirebaseFirestore.instance.collection("Products").get();
-    final allProducts = [];
-
-    for (var store in storeSnapshot.docs) {
-      DocumentSnapshot products = await store.reference.get();
-      
-      // Convert the data to a map and extract values
-      Map<String, dynamic>? data = products.data() as Map<String, dynamic>?;
-      if (data != null) {
-        data.values.forEach((product) {
-          allProducts.add(product);
-        });
-      }
+  // Get all products with caching
+  Future<List<Map<String, dynamic>>> getAllProducts({bool forceRefresh = false}) async {
+    // Check if we have a valid cache
+    final now = DateTime.now();
+    if (!forceRefresh && 
+        _productsCacheTime != null && 
+        _productsCache.isNotEmpty && 
+        now.difference(_productsCacheTime!) < _cacheDuration) {
+      // Return cached data
+      return _productsCache.values.toList().cast<Map<String, dynamic>>();
     }
     
-    return allProducts;
-  }
-
-  Future<void> searchQuery(
-      String query, double latitude, double longitude) async {
-    // Getting the products with productName and within 10 km radius
-
-    QuerySnapshot storeSnapshot = await FirebaseFirestore.instance.collection("Products").get();
-
-    for (var store in storeSnapshot.docs) {
-      DocumentSnapshot products = await store.reference.get();
+    try {
+      final allProducts = <Map<String, dynamic>>[];
       
-      // Convert the data to a map and extract values
-      Map<String, dynamic>? data = products.data() as Map<String, dynamic>?;
-      if (data != null) {
-        data.values.forEach((product) {
-          // Checking if the product name contains the query
-          if (product['Name'].toString().toLowerCase().contains(query.toLowerCase())) {
-            print(product['Name']);
+      // Get all products from the Products collection
+      QuerySnapshot storeSnapshot = await _firestore.collection(FirestoreCollections.products).get();
+      
+      for (var doc in storeSnapshot.docs) {
+        Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          // Add document ID to data for reference
+          data['documentId'] = doc.id;
+          
+          // If data contains sub-maps of products, extract them
+          if (data.values.any((v) => v is Map)) {
+            data.values.whereType<Map>().forEach((product) {
+              if (product is Map<String, dynamic>) {
+                // Add store ID reference
+                product['storeId'] = doc.id;
+                allProducts.add(product);
+              }
+            });
+          } else {
+            // If the document itself is a product
+            allProducts.add(data);
           }
-        });
+        }
       }
+      
+      // Update the cache
+      _productsCache.clear();
+      for (var i = 0; i < allProducts.length; i++) {
+        final product = allProducts[i];
+        _productsCache['product_$i'] = product;
+      }
+      _productsCacheTime = now;
+      
+      return allProducts;
+    } catch (e) {
+      print("Error getting products: $e");
+      
+      // If we have cached data, return it as fallback
+      if (_productsCache.isNotEmpty) {
+        return _productsCache.values.toList().cast<Map<String, dynamic>>();
+      }
+      
+      return [];
     }
   }
 
-  Future<DocumentSnapshot> getStorePosition(String storeEmail) async {
-    DocumentSnapshot storeDetails = await FirebaseFirestore.instance
-        .collection(storeEmail)
-        .doc("Store Details")
-        .get();
-
-    return storeDetails;
+  // Search for products by name and location
+  Future<List<Map<String, dynamic>>> searchProducts(String query, {double? latitude, double? longitude, double radiusKm = 10}) async {
+    try {
+      // Get all products first (uses cache when available)
+      final allProducts = await getAllProducts();
+      
+      if (query.isEmpty) {
+        return allProducts;
+      }
+      
+      // Filter by product name
+      final filteredByName = allProducts.where((product) {
+        final name = product['Name']?.toString().toLowerCase() ?? '';
+        return name.contains(query.toLowerCase());
+      }).toList();
+      
+      // If location search is not requested, return name-filtered results
+      if (latitude == null || longitude == null) {
+        return filteredByName;
+      }
+      
+      // For location filtering
+      final userLocation = GeoPoint(latitude, longitude);
+      
+      // Filter by proximity if location data is available
+      return filteredByName.where((product) {
+        // Check if product has location data
+        final hasLocation = product.containsKey('location') && product['location'] is GeoPoint;
+        if (!hasLocation) return false;
+        
+        // Calculate distance
+        final GeoPoint productLocation = product['location'];
+        final lat1 = userLocation.latitude;
+        final lon1 = userLocation.longitude;
+        final lat2 = productLocation.latitude;
+        final lon2 = productLocation.longitude;
+        
+        // Approximate distance calculation using Haversine formula
+        const earthRadiusKm = 6371.0;
+        final dLat = _degreesToRadians(lat2 - lat1);
+        final dLon = _degreesToRadians(lon2 - lon1);
+        
+        final a = 
+            (sin(dLat / 2) * sin(dLat / 2)) +
+            (cos(_degreesToRadians(lat1)) * cos(_degreesToRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2));
+        final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+        final distance = earthRadiusKm * c;
+        
+        return distance <= radiusKm;
+      }).toList();
+    } catch (e) {
+      print("Error searching products: $e");
+      return [];
+    }
+  }
+  
+  // Helper method for distance calculation
+  double _degreesToRadians(double degrees) {
+    return degrees * (pi / 180);
   }
 
-  String getGoogleMapsLink(lattitude, longitude) {
-    return "http://www.google.com/maps/place/$lattitude,$longitude";
+  // Get store details
+  Future<Map<String, dynamic>?> getStoreDetails(String storeId) async {
+    try {
+      DocumentSnapshot storeDoc = await _firestore
+          .collection(FirestoreCollections.stores)
+          .doc(storeId)
+          .get();
+          
+      if (storeDoc.exists) {
+        final data = storeDoc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          // Add document ID
+          data['id'] = storeDoc.id;
+          return data;
+        }
+      }
+      
+      // Try legacy format for backward compatibility
+      DocumentSnapshot legacyDoc = await _firestore
+          .collection(storeId)
+          .doc("Store Details")
+          .get();
+          
+      if (legacyDoc.exists) {
+        final data = legacyDoc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          data['id'] = storeId;
+          return data;
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      print("Error getting store details: $e");
+      return null;
+    }
+  }
+
+  // Get Google Maps link from coordinates
+  String getGoogleMapsLink(double latitude, double longitude) {
+    return "https://www.google.com/maps/place/$latitude,$longitude";
+  }
+
+  // Get user data from Firestore with caching
+  Future<Map<String, dynamic>?> getUserData({bool forceRefresh = false}) async {
+    try {
+      // Check if a user is logged in
+      final user = _auth.currentUser;
+      if (user == null) {
+        debugPrint("No user is currently logged in");
+        return null;
+      }
+      
+      // Check cache first unless forced refresh
+      if (!forceRefresh && _userDataCache.containsKey(user.uid)) {
+        return Map<String, dynamic>.from(_userDataCache[user.uid]);
+      }
+
+      try {
+        // Get the user document from Firestore
+        DocumentSnapshot userDoc = await _firestore
+            .collection(FirestoreCollections.users)
+            .doc(user.uid)
+            .get();
+
+        Map<String, dynamic>? userData;
+        
+        if (userDoc.exists) {
+          userData = userDoc.data() as Map<String, dynamic>;
+        } else {
+          debugPrint("User document does not exist in Firestore");
+          
+          // Try to get data from the legacy appData collection
+          if (user.email != null) {
+            try {
+              DocumentSnapshot legacyDoc = await _firestore
+                  .collection(FirestoreCollections.appData)
+                  .doc(user.email)
+                  .get();
+                  
+              if (legacyDoc.exists) {
+                userData = legacyDoc.data() as Map<String, dynamic>;
+                
+                // If found in legacy collection, create in new collection
+                try {
+                  await _firestore
+                    .collection(FirestoreCollections.users)
+                    .doc(user.uid)
+                    .set({
+                      ...userData,
+                      'uid': user.uid,
+                      'migratedFromLegacy': true,
+                      'migrationTime': FieldValue.serverTimestamp(),
+                    });
+                } catch (e) {
+                  debugPrint("Error migrating legacy user data: $e");
+                }
+              }
+            } catch (e) {
+              debugPrint("Error fetching from legacy collection: $e");
+              // Continue execution - we'll return null if needed
+            }
+          }
+        }
+        
+        // Update cache if data was found
+        if (userData != null) {
+          // Create a clean map to avoid casting issues
+          Map<String, dynamic> cleanedMap = {};
+          
+          // First, remove the problematic PigeonUserDetails field if it exists
+          userData.remove('PigeonUserDetails');
+          
+          // Then process remaining fields
+          userData.forEach((key, value) {
+            // Handle Lists - avoid issues with Lists that might cause casting problems
+            if (value is List) {
+              // Skip potentially problematic list fields
+              // return [];
+            } else if (value is Map) {
+              // Handle nested maps safely
+              try {
+                cleanedMap[key] = Map<String, dynamic>.from(value);
+              } catch (e) {
+                // If casting fails, skip this field
+                debugPrint("Skipping field $key due to casting error: $e");
+              }
+            } else {
+              // For primitive types like String, num, bool, and null
+              cleanedMap[key] = value;
+            }
+          });
+          
+          _userDataCache[user.uid] = cleanedMap;
+          return cleanedMap;
+        }
+        
+        return userData;
+      } catch (e) {
+        // If there's any error with Firestore, try to get basic user info from Firebase Auth
+        debugPrint("Error getting user data from Firestore, falling back to Auth data: $e");
+        
+        // Create a minimal user profile from Authentication data
+        if (!_userDataCache.containsKey(user.uid)) {
+          _userDataCache[user.uid] = {
+            'uid': user.uid,
+            'email': user.email,
+            'name': user.displayName ?? 'User',
+            'fallbackData': true,
+          };
+        }
+        
+        return Map<String, dynamic>.from(_userDataCache[user.uid]);
+      }
+    } catch (e) {
+      debugPrint("Error retrieving user data: $e");
+      return null;
+    }
+  }
+
+  // Update user profile data
+  Future<bool> updateUserProfile({
+    String? name,
+    String? phoneNumber,
+    String? profileImage,
+    Map<String, dynamic>? additionalData,
+  }) async {
+    try {
+      // Check if a user is logged in
+      final user = _auth.currentUser;
+      if (user == null) {
+        debugPrint("No user is currently logged in");
+        return false;
+      }
+
+      // Create the update data map
+      Map<String, dynamic> updateData = {};
+      
+      if (name != null && name.isNotEmpty) updateData['name'] = name;
+      if (phoneNumber != null && phoneNumber.isNotEmpty) updateData['phoneNumber'] = phoneNumber;
+      if (profileImage != null && profileImage.isNotEmpty) updateData['profileImage'] = profileImage;
+      
+      // Add any additional data fields
+      if (additionalData != null && additionalData.isNotEmpty) {
+        updateData.addAll(additionalData);
+      }
+      
+      // Add update timestamp
+      updateData['lastUpdated'] = FieldValue.serverTimestamp();
+      updateData['profileComplete'] = true;
+
+      // Only proceed if there is data to update
+      if (updateData.isEmpty) {
+        return false;
+      }
+      
+      // Use a batch for atomic updates
+      WriteBatch batch = _firestore.batch();
+      
+      // Update in users collection
+      batch.update(
+        _firestore.collection(FirestoreCollections.users).doc(user.uid),
+        updateData
+      );
+      
+      // Update in legacy collection if email is available
+      if (user.email != null) {
+        batch.update(
+          _firestore.collection(FirestoreCollections.appData).doc(user.email),
+          updateData
+        );
+      }
+      
+      await batch.commit();
+      
+      // Update cache
+      if (_userDataCache.containsKey(user.uid)) {
+        updateData.forEach((key, value) {
+          _userDataCache[user.uid][key] = value;
+        });
+      }
+          
+      return true;
+    } catch (e) {
+      debugPrint("Error updating user profile: $e");
+      return false;
+    }
+  }
+  
+  // Add a product to Firestore
+  Future<bool> addProduct(Map<String, dynamic> productData) async {
+    try {
+      // Check if a user is logged in
+      final user = _auth.currentUser;
+      if (user == null) {
+        debugPrint("No user is currently logged in");
+        return false;
+      }
+      
+      // Make sure productData has an ID
+      if (!productData.containsKey('id')) {
+        productData['id'] = _firestore.collection(FirestoreCollections.products).doc().id;
+      }
+      
+      // Add metadata
+      productData['createdBy'] = user.uid;
+      productData['createdAt'] = FieldValue.serverTimestamp();
+      productData['updatedAt'] = FieldValue.serverTimestamp();
+      
+      // Add product to Firestore
+      await _firestore
+        .collection(FirestoreCollections.products)
+        .doc(productData['id'])
+        .set(productData);
+        
+      // Invalidate products cache
+      _productsCacheTime = null;
+      
+      return true;
+    } catch (e) {
+      debugPrint("Error adding product: $e");
+      return false;
+    }
+  }
+  
+  // Update a product in Firestore
+  Future<bool> updateProduct(String productId, Map<String, dynamic> updates) async {
+    try {
+      // Check if a user is logged in
+      final user = _auth.currentUser;
+      if (user == null) {
+        debugPrint("No user is currently logged in");
+        return false;
+      }
+      
+      // Add metadata
+      updates['updatedBy'] = user.uid;
+      updates['updatedAt'] = FieldValue.serverTimestamp();
+      
+      // Update product in Firestore
+      await _firestore
+        .collection(FirestoreCollections.products)
+        .doc(productId)
+        .update(updates);
+        
+      // Invalidate products cache
+      _productsCacheTime = null;
+      
+      return true;
+    } catch (e) {
+      debugPrint("Error updating product: $e");
+      return false;
+    }
+  }
+  
+  // Delete a product from Firestore
+  Future<bool> deleteProduct(String productId) async {
+    try {
+      // Check if a user is logged in
+      final user = _auth.currentUser;
+      if (user == null) {
+        debugPrint("No user is currently logged in");
+        return false;
+      }
+      
+      // Delete product from Firestore
+      await _firestore
+        .collection(FirestoreCollections.products)
+        .doc(productId)
+        .delete();
+        
+      // Invalidate products cache
+      _productsCacheTime = null;
+      
+      return true;
+    } catch (e) {
+      debugPrint("Error deleting product: $e");
+      return false;
+    }
+  }
+  
+  // Sign out and clear caches
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+      clearCaches();
+    } catch (e) {
+      debugPrint("Error signing out: $e");
+    }
+  }
+  
+  // Get current user
+  User? getCurrentUser() {
+    return _auth.currentUser;
   }
 }
