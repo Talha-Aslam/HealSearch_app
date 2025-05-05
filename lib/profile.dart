@@ -87,9 +87,13 @@ class _ProfileState extends State<Profile> {
   }
 
   void _handleDeleteProfile() async {
+    // Store the context in a variable that will be captured in the closure
+    final BuildContext currentContext = context;
+    BuildContext? loadingDialogContext; // Define dialog context variable at method level
+    
     showDialog(
-      context: context,
-      builder: (BuildContext context) {
+      context: currentContext,
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text("Delete Profile"),
           content: const Text("Are you sure you want to delete your profile?"),
@@ -97,15 +101,43 @@ class _ProfileState extends State<Profile> {
             TextButton(
               child: const Text("Cancel"),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
               },
             ),
             TextButton(
               child: const Text("Yes"),
               onPressed: () async {
+                // First close the confirmation dialog
+                Navigator.of(dialogContext).pop();
+                
                 // Delete user profile
                 if (appData.isLoggedIn && appData.Email != "You are not logged in") {
+                  // Store variables to track state outside the try block for wider scope
+                  bool shouldNavigateToLogin = false;
+                  bool deletionSuccessful = false;
+                  String? errorMessage;
+                  
                   try {
+                    // Show a loading dialog
+                    BuildContext? loadingDialogContext;
+                    showDialog(
+                      context: currentContext,
+                      barrierDismissible: false,
+                      builder: (BuildContext dialogContext) {
+                        loadingDialogContext = dialogContext;
+                        return const AlertDialog(
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text("Deleting profile..."),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                    
                     final user = FirebaseAuth.instance.currentUser;
                     if (user != null) {
                       // Use a batch operation to delete user data from both collections
@@ -126,39 +158,160 @@ class _ProfileState extends State<Profile> {
                       // Commit batch operation
                       await batch.commit();
                       
-                      // Then delete the Firebase Auth user
+                      // The user needs to have recently signed in to delete their account
+                      // First check when they last signed in
+                      final metadata = user.metadata;
+                      final lastSignInTime = metadata.lastSignInTime;
+                      final now = DateTime.now();
+                      
+                      // If the user hasn't signed in recently (within the last hour), we need to re-authenticate
+                      if (lastSignInTime == null || 
+                          now.difference(lastSignInTime).inMinutes > 60) {
+                        
+                        // Close the loading dialog safely
+                        if (loadingDialogContext != null && Navigator.canPop(loadingDialogContext!)) {
+                          Navigator.of(loadingDialogContext!).pop();
+                          loadingDialogContext = null;
+                        }
+                        
+                        // Create a password controller for re-authentication
+                        final passwordController = TextEditingController();
+                        
+                        // Show a dialog to get the user's password for re-authentication
+                        final reAuthResult = await showDialog<bool>(
+                          context: currentContext,
+                          barrierDismissible: false,
+                          builder: (BuildContext dialogContext) {
+                            return AlertDialog(
+                              title: const Text("Re-authentication Required"),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text("Please enter your password to confirm account deletion."),
+                                  const SizedBox(height: 16),
+                                  TextField(
+                                    controller: passwordController,
+                                    obscureText: true,
+                                    decoration: const InputDecoration(
+                                      labelText: "Password",
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  child: const Text("Cancel"),
+                                  onPressed: () {
+                                    Navigator.of(dialogContext).pop(false);
+                                  },
+                                ),
+                                TextButton(
+                                  child: const Text("Confirm"),
+                                  onPressed: () async {
+                                    try {
+                                      // Show loading indicator in dialog
+                                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                        const SnackBar(content: Text('Verifying...')),
+                                      );
+                                      
+                                      // Create credential
+                                      final credential = EmailAuthProvider.credential(
+                                        email: user.email!,
+                                        password: passwordController.text,
+                                      );
+                                      
+                                      // Re-authenticate
+                                      await user.reauthenticateWithCredential(credential);
+                                      Navigator.of(dialogContext).pop(true);
+                                    } catch (e) {
+                                      Navigator.of(dialogContext).pop(false);
+                                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                        SnackBar(content: Text('Authentication failed: ${e.toString()}')),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                        
+                        // If re-authentication was cancelled or failed, abort the deletion
+                        if (reAuthResult != true) {
+                          errorMessage = 'Account deletion cancelled';
+                          return;
+                        }
+                        
+                        // Show loading dialog again
+                        showDialog(
+                          context: currentContext,
+                          barrierDismissible: false,
+                          builder: (BuildContext dialogContext) {
+                            loadingDialogContext = dialogContext;
+                            return const AlertDialog(
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text("Deleting profile..."),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }
+                      
                       try {
+                        // Now try to delete the user authentication record
                         await user.delete();
-                      } catch (authError) {
-                        print("Error deleting auth user: $authError");
-                        // Proceed anyway since we deleted the Firestore data
+                        
+                        // Clear cache and user data
+                        _firebaseApi.clearCaches();
+                        appData.clearUserData();
+                        
+                        deletionSuccessful = true;
+                        shouldNavigateToLogin = true;
+                      } catch (e) {
+                        errorMessage = 'Failed to delete profile: ${e.toString()}';
                       }
                     }
-                    
-                    // Clear cache and user data
-                    _firebaseApi.clearCaches();
-                    appData.clearUserData();
-                    
-                    Navigator.of(context).pop(); // Close dialog
-                    
-                    // Navigate back to login
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Login()),
-                    );
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile deleted successfully')),
-                    );
                   } catch (e) {
-                    Navigator.of(context).pop(); // Close dialog
+                    errorMessage = 'Failed to delete profile: ${e.toString()}';
+                  } finally {
+                    // Close loading dialog safely if it's still open
+                    if (loadingDialogContext != null && Navigator.canPop(loadingDialogContext!)) {
+                      Navigator.of(loadingDialogContext!).pop();
+                    }
                     
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to delete profile: ${e.toString()}')),
-                    );
+                    // Show success or error message - but only if we're not navigating away
+                    if (!shouldNavigateToLogin && errorMessage != null) {
+                      ScaffoldMessenger.of(currentContext).showSnackBar(
+                        SnackBar(content: Text(errorMessage)),
+                      );
+                    } else if (deletionSuccessful) {
+                      // First show the success message
+                      ScaffoldMessenger.of(currentContext).showSnackBar(
+                        const SnackBar(content: Text('Profile deleted successfully')),
+                      );
+                      
+                      // Use a slight delay before navigation to allow the snackbar to be seen
+                      await Future.delayed(const Duration(milliseconds: 500));
+                      
+                      // Then navigate to login screen if the context is still valid
+                      if (currentContext.mounted) {
+                        Navigator.pushReplacement(
+                          currentContext,
+                          MaterialPageRoute(builder: (context) => const Login()),
+                        );
+                      }
+                    }
                   }
                 } else {
-                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(currentContext).showSnackBar(
+                    const SnackBar(content: Text('You must be logged in to delete your profile')),
+                  );
                 }
               },
             ),
