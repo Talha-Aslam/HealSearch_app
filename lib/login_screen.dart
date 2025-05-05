@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/firebase_database.dart' as firebase_db;
@@ -52,6 +54,16 @@ class _LoginState extends State<Login> {
     });
     
     try {
+      // First check connectivity to provide better error message
+      final isConnected = await _firebaseApi.checkInternetConnectivity();
+      if (!isConnected && mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "No internet connection. Please check your network and try again.";
+        });
+        return;
+      }
+      
       // Use our improved login method
       bool loginSuccess = await _firebaseApi.check_login(
         _email.text.trim(),
@@ -69,12 +81,31 @@ class _LoginState extends State<Login> {
           if (!mounted) return;
           
           if (userData != null) {
+            // Get phone number from either field for maximum compatibility
+            final String phoneNum = userData['phoneNumber'] ?? 
+                                   userData['phNo'] ?? 
+                                   "";
+            
             // Set user data in our global AppData object
             appData.setUserData(
               _email.text.trim(),
               userData['name'] ?? "User",
-              userData['phoneNumber'] ?? userData['phNo'] ?? "",
+              phoneNum,
             );
+            
+            // Save login session to stay logged in (using secure storage would be better)
+            try {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userData['uid'])
+                  .update({
+                'lastLogin': FieldValue.serverTimestamp(),
+                'lastLoginDevice': Platform.isIOS ? 'ios' : 'android',
+              });
+            } catch (e) {
+              // Ignore errors updating last login time
+              debugPrint("Failed to update last login time: $e");
+            }
           } else {
             // If we couldn't get user data, set minimal information
             appData.setUserData(
@@ -165,8 +196,14 @@ class _LoginState extends State<Login> {
             _errorMessage = "Network error. Please check your internet connection and try again.";
           } else if (e.toString().contains('password')) {
             _errorMessage = "Incorrect password. Please try again.";
+          } else if (e.toString().contains('invalid-credential')) {
+            _errorMessage = "Invalid login credentials. Please check your email and password.";
           } else if (e.toString().contains('user-not-found') || e.toString().contains('user not found')) {
             _errorMessage = "User not found. Please check your email or register a new account.";
+          } else if (e.toString().contains('RecaptchaCallWrapper')) {
+            _errorMessage = "Security verification failed. Please try again in a few moments.";
+          } else if (e.toString().contains('too-many-requests')) {
+            _errorMessage = "Too many login attempts. Please try again later or reset your password.";
           } else {
             _errorMessage = "Error connecting to the server. Please try again later.";
           }
@@ -214,10 +251,37 @@ class _LoginState extends State<Login> {
                     const SizedBox(height: 16),
                     _buildPasswordField(),
                     if (_errorMessage != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                setState(() {
+                                  _errorMessage = null;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                     _buildForgotPassword(),
@@ -304,9 +368,23 @@ class _LoginState extends State<Login> {
     return TextFormField(
       controller: _email,
       keyboardType: TextInputType.emailAddress,
-      decoration: const InputDecoration(
+      autocorrect: false,
+      autofillHints: const [AutofillHints.email, AutofillHints.username],
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
         labelText: 'Email',
-        prefixIcon: Icon(Icons.email),
+        prefixIcon: const Icon(Icons.email),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE94057), width: 2),
+        ),
       ),
       validator: _emailValidator,
     );
@@ -316,9 +394,24 @@ class _LoginState extends State<Login> {
     return TextFormField(
       controller: _password,
       obscureText: _isObscure,
+      autocorrect: false,
+      autofillHints: const [AutofillHints.password],
+      textInputAction: TextInputAction.done,
+      onFieldSubmitted: (value) => onClickLogin(),
       decoration: InputDecoration(
         labelText: 'Password',
         prefixIcon: const Icon(Icons.lock),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE94057), width: 2),
+        ),
         suffixIcon: IconButton(
           icon: Icon(_isObscure
               ? Icons.visibility
@@ -339,7 +432,7 @@ class _LoginState extends State<Login> {
       alignment: Alignment.centerRight,
       child: TextButton(
         onPressed: () {
-          // Forgot password functionality
+          _showForgotPasswordDialog();
         },
         child: const Text(
           'Forgot Password?',
@@ -349,6 +442,107 @@ class _LoginState extends State<Login> {
         ),
       ),
     );
+  }
+  
+  // Add this new method for password reset functionality
+  void _showForgotPasswordDialog() {
+    final resetEmailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enter your email address and we\'ll send you a link to reset your password.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!value.trim().contains('@') || !value.trim().contains('.')) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(context);
+                setState(() {
+                  _isLoading = true;
+                });
+                
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(
+                    email: resetEmailController.text.trim(),
+                  );
+                  
+                  if (mounted) {
+                    setState(() {
+                      _isLoading = false;
+                    });
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Password reset email sent! Check your inbox.'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    setState(() {
+                      _isLoading = false;
+                    });
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          e.toString().contains('user-not-found')
+                              ? 'No account found with this email'
+                              : 'Error sending reset email. Please try again.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE94057),
+            ),
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
+    ).then((_) => resetEmailController.dispose());
   }
 
   Widget _buildLoginButton() {

@@ -313,64 +313,112 @@ class UserRegistrationService {
         try {
           debugPrint("Saving user data to Firestore for UID: $uid");
           
-          // Create user data
+          // Timestamp for consistency across collections
+          final now = FieldValue.serverTimestamp();
+          
+          // Create user data with consistent field names
           final userData = <String, dynamic>{
             'uid': uid,
             'email': normalizedEmail,
             'name': name,
-            'phoneNumber': phoneNumber,
-            'createdAt': FieldValue.serverTimestamp(),
-            'lastLogin': FieldValue.serverTimestamp(),
+            'phoneNumber': phoneNumber,            // Standardized field name
+            'phNo': phoneNumber,                   // Legacy field name
+            'createdAt': now,
+            'lastLogin': now,
             'profileComplete': false,
             'isActive': true,
             'accountType': 'user',
             'registrationCompleted': true,
-            'registrationDate': FieldValue.serverTimestamp(),
+            'registrationDate': now,
             'deviceType': 'mobile',
             'platform': Platform.isIOS ? 'ios' : 'android',
-          };
-          
-          // Legacy data format
-          final legacyData = <String, dynamic>{
-            'email': normalizedEmail,
-            'name': name,
-            'phoneNumber': phoneNumber,
-            'phNo': phoneNumber, // For backward compatibility
-            'uid': uid,
-            'createdAt': FieldValue.serverTimestamp(),
           };
           
           // Use batch write for consistency
           final batch = _firestore.batch();
           
-          // Add to users collection
+          // Set document reference paths for cross-referencing
           final userRef = _firestore.collection(usersCollection).doc(uid);
+          final legacyRef = _firestore.collection(appDataCollection).doc(normalizedEmail);
+          
+          // Primary record in users collection (with UID as document ID)
           batch.set(userRef, userData);
           
-          // Add to appData collection
-          final legacyRef = _firestore.collection(appDataCollection).doc(normalizedEmail);
+          // Legacy record in appData collection (with email as document ID)
+          // Include all the same fields for maximum compatibility
+          final legacyData = Map<String, dynamic>.from(userData);
+          legacyData['primaryRecordPath'] = userRef.path;  // Add reference to primary record
           batch.set(legacyRef, legacyData);
           
           // Commit the batch
           await batch.commit();
           
-          debugPrint("Successfully saved user data to Firestore");
+          // Verify data was written successfully
+          bool dataVerified = false;
+          try {
+            final verifyDoc = await userRef.get();
+            dataVerified = verifyDoc.exists;
+            
+            if (!dataVerified) {
+              debugPrint("Warning: Primary user document was not created properly");
+              
+              // Try to recover by writing directly if batch failed
+              await userRef.set(userData);
+              
+              // Check again
+              final recheckDoc = await userRef.get();
+              dataVerified = recheckDoc.exists;
+            }
+          } catch (verifyError) {
+            debugPrint("Error verifying user data: $verifyError");
+          }
+          
+          debugPrint("User data saved successfully to Firestore. Data verified: $dataVerified");
           return {
             'success': true,
             'uid': uid,
-            'user': user
+            'user': user,
+            'dataVerified': dataVerified
           };
         } catch (firestoreError) {
           debugPrint("Error saving user data to Firestore: $firestoreError");
           
-          // Return partial success since the account was created
-          return {
-            'success': true,
-            'partial': true, // Indicate data wasn't saved properly
-            'uid': uid,
-            'user': user,
-            'firestoreError': firestoreError.toString()
-          };
+          // Try one more time with a direct write approach
+          try {
+            final userRef = _firestore.collection(usersCollection).doc(uid);
+            final userData = <String, dynamic>{
+              'uid': uid,
+              'email': normalizedEmail,
+              'name': name,
+              'phoneNumber': phoneNumber,
+              'phNo': phoneNumber,  // Include both versions for compatibility
+              'createdAt': FieldValue.serverTimestamp(),
+              'registrationDate': FieldValue.serverTimestamp(),
+              'recovery': true,  // Flag that this was a recovery write
+            };
+            
+            await userRef.set(userData);
+            debugPrint("Successfully saved user data via recovery method");
+            
+            return {
+              'success': true,
+              'partial': false,
+              'uid': uid,
+              'user': user,
+              'recovery': true
+            };
+          } catch (recoveryError) {
+            debugPrint("Recovery attempt also failed: $recoveryError");
+            
+            // Return partial success since the account was created but data wasn't saved
+            return {
+              'success': true,
+              'partial': true,
+              'uid': uid,
+              'user': user,
+              'firestoreError': firestoreError.toString()
+            };
+          }
         }
       } else if (!accountCreated) {
         // Account creation failed
@@ -412,7 +460,7 @@ class UserRegistrationService {
       }
       
       // Create the account with our comprehensive error handling
-      final result = await createUserAccount(email, name, phoneNumber, password);
+      final result = await createUserAccount(email, password, name, phoneNumber);
       
       if (kDebugMode) {
         print("Registration result: $result");

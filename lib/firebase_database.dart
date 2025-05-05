@@ -85,49 +85,88 @@ class Flutter_api {
         );
       }
       
-      // Use Firebase Authentication
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // Implement retry logic with proper backoff
+      int retryCount = 0;
+      const maxRetries = 2;
       
-      // Check if user exists
-      if (userCredential.user != null) {
-        final uid = userCredential.user!.uid;
-        
-        // Update the last login time in Firestore using a transaction
+      while (retryCount <= maxRetries) {
         try {
-          await _firestore.runTransaction((transaction) async {
-            DocumentReference userRef = _firestore.collection(FirestoreCollections.users).doc(uid);
-            transaction.update(userRef, {
-              'lastLogin': FieldValue.serverTimestamp(),
-              'isActive': true
-            });
-          });
+          // Try to sign in, handling reCAPTCHA issues
+          final userCredential = await _auth.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
           
-          // Update legacy collection for backward compatibility
-          try {
-            await _firestore.collection(FirestoreCollections.appData).doc(email).update({
-              'lastLogin': FieldValue.serverTimestamp(),
-            });
-          } catch (e) {
-            // Ignore errors with legacy collection
+          // If successful, update the last login time and return true
+          if (userCredential.user != null) {
+            final uid = userCredential.user!.uid;
+            
+            // Update the last login time in Firestore using a transaction
+            try {
+              await _firestore.runTransaction((transaction) async {
+                DocumentReference userRef = _firestore.collection(FirestoreCollections.users).doc(uid);
+                transaction.update(userRef, {
+                  'lastLogin': FieldValue.serverTimestamp(),
+                  'isActive': true
+                });
+              });
+              
+              // Update legacy collection for backward compatibility
+              try {
+                await _firestore.collection(FirestoreCollections.appData).doc(email).update({
+                  'lastLogin': FieldValue.serverTimestamp(),
+                });
+              } catch (e) {
+                // Ignore errors with legacy collection
+              }
+            } catch (e) {
+              // If updating the timestamp fails, we still want to consider the login successful
+              // but we should log the error
+              debugPrint("Failed to update last login time: $e");
+            }
+            
+            // Clear and pre-populate the user data cache
+            await getUserData(forceRefresh: true);
+            
+            return true;
           }
-        } catch (e) {
-          // If updating the timestamp fails, we still want to consider the login successful
-          // but we should log the error
-          debugPrint("Failed to update last login time: $e");
+          return false;
+        } on FirebaseAuthException catch (e) {
+          debugPrint("Login attempt $retryCount failed: ${e.code} - ${e.message}");
+          
+          // Handle specific error cases
+          if (e.code == 'invalid-credential' || 
+              e.toString().contains('RecaptchaCallWrapper') ||
+              e.message?.contains('RecaptchaAction') == true) {
+            
+            // For reCAPTCHA issues, we'll retry with backoff
+            if (retryCount < maxRetries) {
+              retryCount++;
+              // Exponential backoff: wait longer between retries
+              await Future.delayed(Duration(seconds: retryCount * 2));
+              continue;
+            }
+            
+            // If we've exhausted retries, try a forced sign-out then sign-in
+            if (retryCount == maxRetries) {
+              await _auth.signOut();
+              // Wait before trying again
+              await Future.delayed(const Duration(seconds: 1));
+              retryCount++;
+              continue;
+            }
+          }
+          
+          // For any other error, or if we've tried all our options, rethrow
+          rethrow;
         }
-        
-        // Clear and pre-populate the user data cache
-        await getUserData(forceRefresh: true);
-        
-        return true;
       }
-      return false;
-    } on FirebaseAuthException catch (e) {
-      debugPrint("Login error: ${e.message}");
-      rethrow;
+      
+      // If we get here, all retries failed
+      throw FirebaseAuthException(
+        code: 'auth-retry-failed',
+        message: 'Authentication failed after multiple attempts. Please try again later.',
+      );
     } catch (e) {
       // Handle other errors
       debugPrint("Login error: $e");
