@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:healsearch_app/splash_screen.dart';
 import 'firebase_options.dart';
@@ -18,10 +19,32 @@ final List<Object> _services = [];
 // Function to initialize services in the background
 Future<void> _initializeServices() async {
   try {
-    // Initialize Firebase
+    // Initialize Firebase specifically for mobile platforms
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // Only mobile-specific configurations from here
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+
+    // Add global error handling for PigeonUserDetails errors
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null) {
+        // When we have a user, make sure we can safely access their UID
+        try {
+          final uid = user.uid;
+          debugPrint('User is signed in with UID: $uid');
+        } catch (e) {
+          if (e.toString().contains('PigeonUserDetails') || 
+              e.toString().contains('List<Object?>')) {
+            debugPrint('Caught PigeonUserDetails error safely');
+          }
+        }
+      }
+    });
 
     // Initialize connectivity monitoring
     final connectivity = Connectivity();
@@ -29,6 +52,17 @@ Future<void> _initializeServices() async {
     await connectivity.checkConnectivity();
   } catch (e) {
     debugPrint('Error initializing services: $e');
+  }
+}
+
+// Helper function to safely get Firebase user UID, handling PigeonUserDetails errors
+String? safeGetFirebaseUid() {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    return user?.uid;
+  } catch (e) {
+    debugPrint('Error accessing Firebase user: $e');
+    return null;
   }
 }
 

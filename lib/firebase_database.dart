@@ -12,6 +12,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io';
 import 'dart:async';
 import 'firebase_options.dart';
+import 'registration.dart'; // Import the registration service
 
 /// Class containing all Firestore collection names to ensure consistency
 class FirestoreCollections {
@@ -33,6 +34,9 @@ class Flutter_api {
   
   // Internal constructor
   Flutter_api._internal();
+  
+  // Reference to the registration service
+  final UserRegistrationService _registrationService = UserRegistrationService();
   
   // Local cache for user data
   final Map<String, dynamic> _userDataCache = {};
@@ -64,40 +68,17 @@ class Flutter_api {
     _productsCacheTime = null;
   }
 
-  // Public method to check internet connectivity
+  // Public method to check internet connectivity using the improved implementation
   Future<bool> checkInternetConnectivity() async {
-    return _checkInternetConnectivity();
-  }
-
-  // Check network connectivity with timeout
-  Future<bool> _checkInternetConnectivity() async {
-    try {
-      final connectivityResult = await Connectivity().checkConnectivity()
-          .timeout(const Duration(seconds: 5));
-      
-      if (connectivityResult == ConnectivityResult.none) {
-        return false;
-      }
-      
-      // Try to actually reach Firebase servers
-      final result = await InternetAddress.lookup('firebase.google.com')
-          .timeout(const Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on TimeoutException {
-      return false;
-    } on SocketException {
-      return false;
-    } catch (e) {
-      print("Error checking connectivity: $e");
-      return false;
-    }
+    // Delegate to the registration service's implementation for consistency
+    return _registrationService.checkInternetConnectivity();
   }
 
   // Check login with proper error handling
   Future<bool> check_login(String email, String password) async {
     try {
       // Check connectivity first
-      if (!await _checkInternetConnectivity()) {
+      if (!await checkInternetConnectivity()) {
         throw FirebaseAuthException(
           code: 'network-request-failed',
           message: 'No internet connection. Please check your network settings and try again.',
@@ -161,194 +142,18 @@ class Flutter_api {
     }
   }
 
-  // Registration with enhanced retry logic and transaction support
+  // Use the new UserRegistrationService for registration
   Future<bool> register(
-      String email, String storeName, String phNo, String password) async {
-    // Maximum number of retry attempts
-    const maxRetries = 3;
-    
-    print("Starting registration process for email: $email");
-    
-    // Check connectivity before attempting registration
-    if (!await _checkInternetConnectivity()) {
-      print("Registration failed: No internet connection");
-      throw FirebaseAuthException(
-        code: 'network-request-failed',
-        message: 'No internet connection. Please check your network settings and try again.',
-      );
+      String email, String name, String phoneNumber, String password) async {
+    try {
+      final result = await _registrationService.register(email, name, phoneNumber, password);
+      
+      // Check the success status from the map and return a boolean
+      return result['success'] == true;
+    } catch (e) {
+      // Just forward any exceptions
+      rethrow;
     }
-    
-    // Start retry loop
-    for (var attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        print("Registration attempt $attempt of $maxRetries");
-        
-        // Check if email already exists in Firebase Auth
-        try {
-          final methods = await _auth.fetchSignInMethodsForEmail(email);
-          if (methods.isNotEmpty) {
-            throw FirebaseAuthException(
-              code: 'email-already-in-use',
-              message: 'The email address is already in use by another account.',
-            );
-          }
-        } catch (e) {
-          if (e is FirebaseAuthException && e.code == 'email-already-in-use') {
-            rethrow;
-          }
-          // Other errors with fetching sign-in methods can be ignored
-        }
-        
-        // Attempt to create the user
-        print("Creating user account with Firebase Authentication...");
-        final userCredential = await _auth.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        ).timeout(
-          const Duration(seconds: 30),
-          onTimeout: () => throw FirebaseAuthException(
-            code: 'timeout',
-            message: 'Connection timed out. Please try again.',
-          ),
-        );
-        
-        // Make sure we have a valid UID before proceeding
-        if (userCredential.user == null || userCredential.user!.uid.isEmpty) {
-          print("Failed to get valid user ID from Firebase");
-          throw Exception("Failed to get valid user ID from Firebase");
-        }
-        
-        // Get the user UID for use as document ID
-        final String uid = userCredential.user!.uid;
-        print("User created successfully with UID: $uid");
-        
-        // Create comprehensive user data object
-        final userData = {
-          'uid': uid,
-          'email': email,
-          'name': storeName,
-          'phoneNumber': phNo,
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastLogin': FieldValue.serverTimestamp(),
-          'profileComplete': false,
-          'isActive': true,
-          'accountType': 'user',
-          'registrationCompleted': true,
-          'registrationDate': FieldValue.serverTimestamp(),
-        };
-        
-        print("Preparing to save user data to Firestore...");
-        
-        // Use a transaction instead of batch for stronger consistency guarantees
-        bool writeSuccess = false;
-        try {
-          await _firestore.runTransaction((transaction) async {
-            // Store user data in a 'users' collection with UID as document ID
-            DocumentReference userRef = _firestore.collection(FirestoreCollections.users).doc(uid);
-            transaction.set(userRef, userData);
-            
-            // Also maintain backward compatibility with existing code by keeping the appData collection
-            DocumentReference legacyRef = _firestore.collection(FirestoreCollections.appData).doc(email);
-            transaction.set(legacyRef, {
-              'email': email,
-              'name': storeName,
-              'phNo': phNo,
-              'uid': uid,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
-            
-            writeSuccess = true;
-          }, maxAttempts: 3);
-        } catch (e) {
-          print("Error during Firestore transaction: $e");
-          writeSuccess = false;
-          throw Exception("Failed to save user data to Firestore: $e");
-        }
-        
-        if (!writeSuccess) {
-          print("Firestore transaction didn't complete successfully");
-          throw Exception("Failed to save user data to Firestore");
-        }
-        
-        print("Firestore transaction completed successfully");
-        
-        // Verify write was successful by reading data back
-        try {
-          DocumentSnapshot verifyDoc = await _firestore.collection(FirestoreCollections.users).doc(uid).get();
-          
-          if (!verifyDoc.exists) {
-            print("ERROR: User document was not written to Firestore successfully");
-            // If primary write failed, don't continue
-            throw Exception("Failed to verify user data in Firestore");
-          }
-          
-          // Further verify that critical fields exist
-          final verifyData = verifyDoc.data() as Map<String, dynamic>?;
-          if (verifyData == null || 
-              verifyData['email'] != email || 
-              verifyData['name'] != storeName) {
-            print("ERROR: User data in Firestore is inconsistent");
-            throw Exception("User data verification failed - inconsistent data");
-          }
-          
-          print("User data successfully verified in Firestore");
-        } catch (e) {
-          print("Error verifying user data: $e");
-          throw Exception("Failed to verify user data: $e");
-        }
-        
-        print("Registration successful after $attempt attempts");
-        
-        // Add user to cache for faster future access
-        _userDataCache[uid] = userData;
-        
-        return true;
-      } on FirebaseAuthException catch (e) {
-        print("Registration error on attempt $attempt: [${e.code}] ${e.message}");
-        
-        // Don't retry for these specific errors
-        if (e.code == 'email-already-in-use' || 
-            e.code == 'invalid-email' || 
-            e.code == 'weak-password') {
-          rethrow; // No point retrying for these errors
-        }
-        
-        // Network or reCAPTCHA related errors should trigger retry
-        if (e.code == 'network-request-failed' || 
-            e.message?.contains('network') == true ||
-            e.message?.contains('recaptcha') == true ||
-            e.message?.contains('timeout') == true) {
-          
-          if (attempt == maxRetries) {
-            // This was our last attempt
-            print("Maximum retry attempts reached. Registration failed.");
-            rethrow;
-          }
-          
-          // Exponential backoff: wait longer between each retry
-          final backoffSeconds = attempt * 2;
-          print("Retrying in $backoffSeconds seconds...");
-          await Future.delayed(Duration(seconds: backoffSeconds));
-          continue; // Try again
-        }
-        
-        // For any other errors, log and rethrow
-        print("Unhandled Firebase Auth error: ${e.code} - ${e.message}");
-        rethrow;
-      } catch (e) {
-        // Handle any other errors
-        print("Unexpected error during registration: $e");
-        if (attempt == maxRetries) {
-          print("Maximum retry attempts reached. Registration failed due to: $e");
-          rethrow;
-        }
-        await Future.delayed(Duration(seconds: 2));
-      }
-    }
-    
-    // Should never reach here due to rethrow, but to satisfy the compiler
-    print("Registration failed for unknown reasons");
-    return false;
   }
 
   // Getting Current Location
@@ -698,17 +503,32 @@ class Flutter_api {
           
           // Then process remaining fields
           userData.forEach((key, value) {
+            // Skip any fields with PigeonUserDetails in the name
+            if (key.contains('PigeonUserDetails')) {
+              return;
+            }
+            
             // Handle Lists - avoid issues with Lists that might cause casting problems
             if (value is List) {
-              // Skip potentially problematic list fields
-              // return [];
+              try {
+                // Skip any lists that might contain PigeonUserDetails
+                if (value.isNotEmpty && value.first.toString().contains('PigeonUserDetails')) {
+                  return;
+                }
+                // Try to safely convert the list to a standard List<dynamic>
+                final safeList = List<dynamic>.from(value);
+                cleanedMap[key] = safeList;
+              } catch (e) {
+                // If conversion fails, skip this field
+                debugPrint("Skipping list field $key due to casting error: $e");
+              }
             } else if (value is Map) {
               // Handle nested maps safely
               try {
                 cleanedMap[key] = Map<String, dynamic>.from(value);
               } catch (e) {
                 // If casting fails, skip this field
-                debugPrint("Skipping field $key due to casting error: $e");
+                debugPrint("Skipping map field $key due to casting error: $e");
               }
             } else {
               // For primitive types like String, num, bool, and null

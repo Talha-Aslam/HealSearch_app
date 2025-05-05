@@ -117,7 +117,7 @@ class _ProfileState extends State<Profile> {
                       );
                       
                       // Delete from legacy appData collection if email is available
-                      if (appData.Email != null && appData.Email.isNotEmpty) {
+                      if (appData.Email.isNotEmpty) {
                         batch.delete(
                           FirebaseFirestore.instance.collection(FirestoreCollections.appData).doc(appData.Email)
                         );
