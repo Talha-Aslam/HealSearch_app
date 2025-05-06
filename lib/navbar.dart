@@ -4,6 +4,7 @@ import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/login_screen.dart';
 import 'package:healsearch_app/profile.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Navbar extends StatelessWidget {
   const Navbar({super.key});
@@ -115,24 +116,88 @@ class Navbar extends StatelessWidget {
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text('Contact Us'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.contact_mail, size: 50, color: Colors.blue),
-                      SizedBox(height: 10),
-                      Text('HealSearch Developers'),
-                      Text('Email: talha@student.uol.edu.pk'),
-                    ],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                  ),
+                  title: const Center(
+                    child: Text(
+                      'Contact Us',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                  content: Container(
+                    width: double.maxFinite,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.blue.withOpacity(0.1),
+                          ),
+                          child: const Icon(
+                            Icons.contact_mail,
+                            size: 60,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'HealSearch Developers',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Divider(),
+                        const ListTile(
+                          leading: Icon(Icons.email, color: Colors.blue),
+                          title: Text('Email'),
+                          subtitle: Text('talha@student.uol.edu.pk'),
+                          dense: true,
+                        ),
+                        const ListTile(
+                          leading: Icon(Icons.phone, color: Colors.blue),
+                          title: Text('Phone'),
+                          subtitle: Text('+92 123 456 7890'),
+                          dense: true,
+                        ),
+                        const ListTile(
+                          leading: Icon(Icons.location_on, color: Colors.blue),
+                          title: Text('Address'),
+                          subtitle: Text('University of Lahore, Pakistan'),
+                          dense: true,
+                        ),
+                      ],
+                    ),
                   ),
                   actions: [
                     TextButton(
-                      child: const Text('Thanks'),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
                     ),
                   ],
+                  actionsPadding: const EdgeInsets.fromLTRB(0, 0, 20, 15),
+                  actionsAlignment: MainAxisAlignment.center,
                 );
               },
             );

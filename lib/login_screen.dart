@@ -27,7 +27,7 @@ class _LoginState extends State<Login> {
   // Create an instance of our Firebase API wrapper
   final _firebaseApi = firebase_db.Flutter_api();
   String? _errorMessage;
-  
+
   // Cache form validators to avoid rebuilding them
   final _emailValidator = MultiValidator([
     RequiredValidator(errorText: "Required *"),
@@ -52,47 +52,48 @@ class _LoginState extends State<Login> {
       _isLoading = true;
       _errorMessage = null;
     });
-    
+
     try {
       // First check connectivity to provide better error message
       final isConnected = await _firebaseApi.checkInternetConnectivity();
+      if (!mounted) return;
       if (!isConnected && mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = "No internet connection. Please check your network and try again.";
+          _errorMessage =
+              "No internet connection. Please check your network and try again.";
         });
         return;
       }
-      
+
       // Use our improved login method
       bool loginSuccess = await _firebaseApi.check_login(
         _email.text.trim(),
         _password.text,
       );
-      
+      if (!mounted) return;
+
       // If we're not mounted anymore, don't continue
       if (!mounted) return;
-      
+
       if (loginSuccess) {
         try {
           // Use our improved API to fetch user data with caching
           final userData = await _firebaseApi.getUserData();
-          
           if (!mounted) return;
-          
+
           if (userData != null) {
             // Get phone number from either field for maximum compatibility
-            final String phoneNum = userData['phoneNumber'] ?? 
-                                   userData['phNo'] ?? 
-                                   "";
-            
+            final String phoneNum =
+                userData['phoneNumber'] ?? userData['phNo'] ?? "";
+
             // Set user data in our global AppData object
             appData.setUserData(
               _email.text.trim(),
               userData['name'] ?? "User",
               phoneNum,
             );
-            
+
             // Save login session to stay logged in (using secure storage would be better)
             try {
               await FirebaseFirestore.instance
@@ -102,6 +103,7 @@ class _LoginState extends State<Login> {
                 'lastLogin': FieldValue.serverTimestamp(),
                 'lastLoginDevice': Platform.isIOS ? 'ios' : 'android',
               });
+              if (!mounted) return;
             } catch (e) {
               // Ignore errors updating last login time
               debugPrint("Failed to update last login time: $e");
@@ -114,16 +116,16 @@ class _LoginState extends State<Login> {
               "",
             );
           }
-          
+
           // Only update state if still mounted
           if (mounted) {
             setState(() {
               _isLoading = false;
             });
-            
+
             // Use pushAndRemoveUntil for more efficient navigation
             Navigator.pushAndRemoveUntil(
-              context, 
+              context,
               MaterialPageRoute(builder: (context) => const Search()),
               (route) => false,
             );
@@ -131,7 +133,7 @@ class _LoginState extends State<Login> {
         } catch (e) {
           if (mounted) {
             debugPrint("Error fetching user data: $e");
-            
+
             // Handle PigeonUserDetails type casting error specifically
             if (e.toString().contains('PigeonUserDetails')) {
               // Set minimal user information when facing the PigeonUserDetails error
@@ -140,36 +142,37 @@ class _LoginState extends State<Login> {
                 "User",
                 "",
               );
-              
+
               setState(() {
                 _isLoading = false;
               });
-              
+
               // Navigate to search screen despite the error
               Navigator.pushAndRemoveUntil(
-                context, 
+                context,
                 MaterialPageRoute(builder: (context) => const Search()),
                 (route) => false,
               );
               return;
             }
-            
+
             // Still navigate to search screen even if we couldn't fetch complete profile data
             // This prevents login issues due to profile data access problems
             setState(() {
               _isLoading = false;
             });
-            
+
             // Show a brief message about the issue
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text("Signed in, but there was an issue loading your profile"),
+                content: Text(
+                    "Signed in, but there was an issue loading your profile"),
                 duration: Duration(seconds: 3),
               ),
             );
-            
+
             Navigator.pushAndRemoveUntil(
-              context, 
+              context,
               MaterialPageRoute(builder: (context) => const Search()),
               (route) => false,
             );
@@ -188,24 +191,32 @@ class _LoginState extends State<Login> {
         debugPrint("Login error: $e");
         setState(() {
           _isLoading = false;
-          
+
           // More specific error message based on error type
           if (e.toString().contains('PigeonUserDetails')) {
-            _errorMessage = "Authentication succeeded but there was an issue with user data. Please try again.";
+            _errorMessage =
+                "Authentication succeeded but there was an issue with user data. Please try again.";
           } else if (e.toString().contains('network')) {
-            _errorMessage = "Network error. Please check your internet connection and try again.";
+            _errorMessage =
+                "Network error. Please check your internet connection and try again.";
           } else if (e.toString().contains('password')) {
             _errorMessage = "Incorrect password. Please try again.";
           } else if (e.toString().contains('invalid-credential')) {
-            _errorMessage = "Invalid login credentials. Please check your email and password.";
-          } else if (e.toString().contains('user-not-found') || e.toString().contains('user not found')) {
-            _errorMessage = "User not found. Please check your email or register a new account.";
+            _errorMessage =
+                "Invalid login credentials. Please check your email and password.";
+          } else if (e.toString().contains('user-not-found') ||
+              e.toString().contains('user not found')) {
+            _errorMessage =
+                "User not found. Please check your email or register a new account.";
           } else if (e.toString().contains('RecaptchaCallWrapper')) {
-            _errorMessage = "Security verification failed. Please try again in a few moments.";
+            _errorMessage =
+                "Security verification failed. Please try again in a few moments.";
           } else if (e.toString().contains('too-many-requests')) {
-            _errorMessage = "Too many login attempts. Please try again later or reset your password.";
+            _errorMessage =
+                "Too many login attempts. Please try again later or reset your password.";
           } else {
-            _errorMessage = "Error connecting to the server. Please try again later.";
+            _errorMessage =
+                "Error connecting to the server. Please try again later.";
           }
         });
       }
@@ -216,15 +227,13 @@ class _LoginState extends State<Login> {
   Future<void> _handleGoogleSignIn() async {
     // Placeholder for Google Sign-In implementation
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Google Sign-In is not configured yet"))
-    );
+        const SnackBar(content: Text("Google Sign-In is not configured yet")));
   }
 
   Future<void> _handleFacebookSignIn() async {
     // Placeholder for Facebook Sign-In implementation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Facebook Sign-In is not configured yet"))
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Facebook Sign-In is not configured yet")));
   }
 
   @override
@@ -233,72 +242,86 @@ class _LoginState extends State<Login> {
     final mediaQuery = MediaQuery.of(context);
     height = mediaQuery.size.height;
     width = mediaQuery.size.width;
-    
+
     return Scaffold(
-      // Optimize scrolling performance with scrolling physics
-      body: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          children: [
-            _buildHeader(),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: formkey,
-                child: Column(
-                  children: [
-                    _buildEmailField(),
-                    const SizedBox(height: 16),
-                    _buildPasswordField(),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.red, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () {
-                                setState(() {
-                                  _errorMessage = null;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    _buildForgotPassword(),
-                    const SizedBox(height: 20),
-                    _buildLoginButton(),
-                    const SizedBox(height: 7),
-                    _buildSignUpSection(),
-                    const SizedBox(height: 18),
-                    _buildSocialLoginSection(),
-                    const SizedBox(height: 16),
-                    _buildGuestLoginButton(),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
+      resizeToAvoidBottomInset: true, // Ensures keyboard doesn't cause overflow
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: mediaQuery.size.height -
+                  mediaQuery.padding.top -
+                  mediaQuery.padding.bottom,
             ),
-          ],
+            child: Column(
+              children: [
+                _buildHeader(),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: formkey,
+                    child: Column(
+                      children: [
+                        _buildEmailField(),
+                        const SizedBox(height: 16),
+                        _buildPasswordField(),
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    color: Colors.red, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close,
+                                      size: 16, color: Colors.red),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {
+                                    if (mounted) {
+                                      setState(() {
+                                        _errorMessage = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        _buildForgotPassword(),
+                        const SizedBox(height: 20),
+                        _buildLoginButton(),
+                        const SizedBox(height: 7),
+                        _buildSignUpSection(),
+                        const SizedBox(height: 18),
+                        _buildSocialLoginSection(),
+                        const SizedBox(height: 16),
+                        _buildGuestLoginButton(),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -386,7 +409,7 @@ class _LoginState extends State<Login> {
           borderSide: const BorderSide(color: Color(0xFFE94057), width: 2),
         ),
       ),
-      validator: _emailValidator,
+      validator: _emailValidator.call,
     );
   }
 
@@ -413,9 +436,7 @@ class _LoginState extends State<Login> {
           borderSide: const BorderSide(color: Color(0xFFE94057), width: 2),
         ),
         suffixIcon: IconButton(
-          icon: Icon(_isObscure
-              ? Icons.visibility
-              : Icons.visibility_off),
+          icon: Icon(_isObscure ? Icons.visibility : Icons.visibility_off),
           onPressed: () {
             setState(() {
               _isObscure = !_isObscure;
@@ -423,7 +444,7 @@ class _LoginState extends State<Login> {
           },
         ),
       ),
-      validator: _passwordValidator,
+      validator: _passwordValidator.call,
     );
   }
 
@@ -443,95 +464,86 @@ class _LoginState extends State<Login> {
       ),
     );
   }
-  
+
   // Add this new method for password reset functionality
   void _showForgotPasswordDialog() {
     final resetEmailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reset Password'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Enter your email address and we\'ll send you a link to reset your password.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: resetEmailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Enter your email address and we\'ll send you a link to reset your password.',
+                  style: TextStyle(fontSize: 14),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!value.trim().contains('@') || !value.trim().contains('.')) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: resetEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!value.trim().contains('@') ||
+                        !value.trim().contains('.')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context, null);
+              }
+            },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               if (formKey.currentState!.validate()) {
-                Navigator.pop(context);
                 setState(() {
                   _isLoading = true;
                 });
-                
                 try {
                   await FirebaseAuth.instance.sendPasswordResetEmail(
                     email: resetEmailController.text.trim(),
                   );
-                  
                   if (mounted) {
                     setState(() {
                       _isLoading = false;
                     });
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Password reset email sent! Check your inbox.'),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 4),
-                      ),
-                    );
                   }
+                  Navigator.pop(context, 'success');
                 } catch (e) {
                   if (mounted) {
                     setState(() {
                       _isLoading = false;
                     });
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          e.toString().contains('user-not-found')
-                              ? 'No account found with this email'
-                              : 'Error sending reset email. Please try again.',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
                   }
+                  Navigator.pop(
+                      context,
+                      e.toString().contains('user-not-found')
+                          ? 'user-not-found'
+                          : 'error');
                 }
               }
             },
@@ -542,7 +554,31 @@ class _LoginState extends State<Login> {
           ),
         ],
       ),
-    ).then((_) => resetEmailController.dispose());
+    ).then((result) {
+      if (result == 'success' && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset email sent! Check your inbox.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      } else if (result == 'user-not-found' && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No account found with this email'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else if (result == 'error' && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error sending reset email. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
   }
 
   Widget _buildLoginButton() {
@@ -559,13 +595,12 @@ class _LoginState extends State<Login> {
         ),
         child: _isLoading
             ? const SizedBox(
-                width: 20, 
-                height: 20, 
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: Colors.white,
-                )
-              )
+                ))
             : const Text(
                 'Login',
                 style: TextStyle(
@@ -592,11 +627,8 @@ class _LoginState extends State<Login> {
         ),
         TextButton(
           onPressed: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        const Registration()));
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => const Registration()));
           },
           child: const Text(
             'Sign Up',
@@ -655,14 +687,13 @@ class _LoginState extends State<Login> {
         // Let users know they're in guest mode with limited access
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Guest mode: Some features like profile will require login'),
+            content: Text(
+                'Guest mode: Some features like profile will require login'),
             duration: Duration(seconds: 3),
           ),
         );
         Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const Search()));
+            context, MaterialPageRoute(builder: (context) => const Search()));
       },
       child: const Text(
         'Continue as Guest',

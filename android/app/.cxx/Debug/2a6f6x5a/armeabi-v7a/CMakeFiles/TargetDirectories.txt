@@ -1,0 +1,2 @@
+D:/Final year Project/git clone/HealSearch_app/android/app/.cxx/Debug/2a6f6x5a/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/Final year Project/git clone/HealSearch_app/android/app/.cxx/Debug/2a6f6x5a/armeabi-v7a/CMakeFiles/rebuild_cache.dir

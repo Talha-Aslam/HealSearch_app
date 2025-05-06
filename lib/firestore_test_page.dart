@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirestoreTestPage extends StatefulWidget {
+  const FirestoreTestPage({super.key});
+
   @override
   _FirestoreTestPageState createState() => _FirestoreTestPageState();
 }
@@ -26,7 +28,7 @@ class _FirestoreTestPageState extends State<FirestoreTestPage> {
       });
     } catch (e) {
       setState(() {
-        _result = 'Error: ' + e.toString();
+        _result = 'Error: $e';
       });
     } finally {
       setState(() {

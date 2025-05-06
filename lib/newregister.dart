@@ -12,7 +12,8 @@ class SignupPage extends StatefulWidget {
   State<SignupPage> createState() => _SignupPageState();
 }
 
-class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateMixin {
+class _SignupPageState extends State<SignupPage>
+    with SingleTickerProviderStateMixin {
   final fnameController = TextEditingController();
   final lnameController = TextEditingController();
   final EmailController = TextEditingController();
@@ -21,25 +22,25 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
   bool _isLoading = false;
   String? _errorMessage;
   late AnimationController _animationController;
-  
+
   // Form validation errors
-  Map<String, String?> _errors = {
+  final Map<String, String?> _errors = {
     'fname': null,
     'lname': null,
     'email': null,
     'password': null,
     'password2': null,
   };
-  
+
   // Field touched state to prevent showing errors before user interaction
-  Map<String, bool> _touched = {
+  final Map<String, bool> _touched = {
     'fname': false,
     'lname': false,
     'email': false,
     'password': false,
     'password2': false,
   };
-  
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +48,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..forward();
-    
+
     // Add listeners for real-time validation
     fnameController.addListener(() => _validateField('fname'));
     lnameController.addListener(() => _validateField('lname'));
@@ -64,7 +65,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
   // Validate individual fields
   void _validateField(String field) {
     if (!_touched[field]!) return;
-    
+
     setState(() {
       switch (field) {
         case 'fname':
@@ -92,7 +93,8 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
           } else if (password.length < 8) {
             _errors[field] = "Password must be at least 8 characters";
           } else if (!password.contains(RegExp(r'[A-Z]'))) {
-            _errors[field] = "Password must contain at least one uppercase letter";
+            _errors[field] =
+                "Password must contain at least one uppercase letter";
           } else if (!password.contains(RegExp(r'[0-9]'))) {
             _errors[field] = "Password must contain at least one number";
           } else {
@@ -128,12 +130,12 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
     for (var field in _touched.keys) {
       _touched[field] = true;
     }
-    
+
     // Validate all fields
     for (var field in _errors.keys) {
       _validateField(field);
     }
-    
+
     // Check if any errors exist
     return !_errors.values.any((error) => error != null);
   }
@@ -146,7 +148,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
     if (!password.contains(RegExp(r'[0-9]'))) return false;
     return true;
   }
-  
+
   // Validate email format
   bool _validateEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
@@ -159,28 +161,28 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
       if (currentUser == null || !mounted) {
         throw Exception("User not authenticated");
       }
-      
+
       await FirebaseFirestore.instance
-        .collection("Users")
-        .doc(EmailController.text.trim())
-        .set({
-          "Name": "${fnameController.text.trim()} ${lnameController.text.trim()}",
-          "Email": EmailController.text.trim(),
-          "Phone": "",
-          "Gender": "Male",
-          "CreatedAt": FieldValue.serverTimestamp(),
-        })
-        .timeout(
-          Duration(seconds: 10),
-          onTimeout: () {
-            throw TimeoutException("Database operation timed out");
-          },
-        );
+          .collection("Users")
+          .doc(EmailController.text.trim())
+          .set({
+        "Name": "${fnameController.text.trim()} ${lnameController.text.trim()}",
+        "Email": EmailController.text.trim(),
+        "Phone": "",
+        "Gender": "Male",
+        "CreatedAt": FieldValue.serverTimestamp(),
+      }).timeout(
+        Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException("Database operation timed out");
+        },
+      );
     } on FirebaseException catch (e) {
       print("Firebase error: ${e.code}, ${e.message}");
       throw Exception("Database error: ${e.message}");
     } on TimeoutException catch (_) {
-      throw Exception("Connection timed out. Please check your internet connection.");
+      throw Exception(
+          "Connection timed out. Please check your internet connection.");
     } catch (e) {
       print("Error saving user data: $e");
       throw Exception("Failed to save user data: $e");
@@ -192,12 +194,12 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
     if (!_isFormValid()) {
       return false;
     }
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-    
+
     try {
       // Create the user account with error handling
       final userCredential = await FirebaseAuth.instance
@@ -205,15 +207,16 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
               email: EmailController.text.trim(),
               password: passController.text.trim())
           .timeout(
-            Duration(seconds: 15),
-            onTimeout: () {
-              throw FirebaseAuthException(
-                code: 'timeout',
-                message: 'Connection timed out. Please check your internet connection.',
-              );
-            },
+        Duration(seconds: 15),
+        onTimeout: () {
+          throw FirebaseAuthException(
+            code: 'timeout',
+            message:
+                'Connection timed out. Please check your internet connection.',
           );
-              
+        },
+      );
+
       return userCredential != null;
     } on FirebaseAuthException catch (e) {
       String message;
@@ -266,7 +269,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
   }
 
   var is_checked = false;
-  
+
   @override
   void dispose() {
     fnameController.dispose();
@@ -281,7 +284,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(), // Dismiss keyboard on tap
       child: Scaffold(
@@ -329,7 +332,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 30),
                     // Heading
                     const Text(
@@ -340,7 +343,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         fontSize: 28,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 10),
                     Text(
                       'Sign up to get help when you need it most',
@@ -349,9 +352,9 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         color: Colors.grey[600],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Display global error message if any
                     if (_errorMessage != null)
                       Container(
@@ -387,7 +390,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                           ],
                         ),
                       ),
-                      
+
                     // Form fields
                     Row(
                       children: [
@@ -416,7 +419,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 8),
                     CustomTextField2(
                       controller: EmailController,
@@ -427,7 +430,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                       errorText: _errors['email'],
                       onChanged: (_) => _setTouched('email'),
                     ),
-                    
+
                     const SizedBox(height: 8),
                     CustomTextField2(
                       controller: passController,
@@ -438,7 +441,7 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                       errorText: _errors['password'],
                       onChanged: (_) => _setTouched('password'),
                     ),
-                    
+
                     const SizedBox(height: 8),
                     CustomTextField2(
                       controller: pass2controller,
@@ -449,13 +452,14 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                       errorText: _errors['password2'],
                       onChanged: (_) => _setTouched('password2'),
                     ),
-                    
+
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Checkbox(
                           value: is_checked,
-                          fillColor: MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                          fillColor: MaterialStateProperty.resolveWith<Color>(
+                              (Set<MaterialState> states) {
                             if (states.contains(MaterialState.selected)) {
                               return Colors.red;
                             }
@@ -484,55 +488,57 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 30),
-                    
+
                     // Sign up button
                     SizedBox(
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: _isLoading 
-                          ? null 
-                          : () async {
-                              // Clear the global error message
-                              setState(() {
-                                _errorMessage = null;
-                              });
-                              
-                              // Check terms agreement
-                              if (!is_checked) {
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                // Clear the global error message
                                 setState(() {
-                                  _errorMessage = "Please agree to Terms and Conditions";
+                                  _errorMessage = null;
                                 });
-                                return;
-                              }
-                              
-                              // Create user account
-                              if (await CreateUser()) {
-                                try {
-                                  await SaveUserdata();
-                                  
-                                  // Show success and navigate to dashboard
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Account created successfully!'),
-                                      backgroundColor: Colors.green,
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                  
-                                  // Navigator.pushReplacement(
-                                  //   context, 
-                                  //   MaterialPageRoute(builder: (context) => Dashboard()),
-                                  // );
-                                } catch (e) {
+
+                                // Check terms agreement
+                                if (!is_checked) {
                                   setState(() {
-                                    _errorMessage = e.toString();
+                                    _errorMessage =
+                                        "Please agree to Terms and Conditions";
                                   });
+                                  return;
                                 }
-                              }
-                            },
+
+                                // Create user account
+                                if (await CreateUser()) {
+                                  try {
+                                    await SaveUserdata();
+
+                                    // Show success and navigate to dashboard
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Account created successfully!'),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+
+                                    // Navigator.pushReplacement(
+                                    //   context,
+                                    //   MaterialPageRoute(builder: (context) => Dashboard()),
+                                    // );
+                                  } catch (e) {
+                                    setState(() {
+                                      _errorMessage = e.toString();
+                                    });
+                                  }
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
@@ -544,27 +550,27 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                           ),
                         ),
                         child: _isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'Create Account',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Sign in link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -594,9 +600,9 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Emergency call section
                     const Divider(
                       height: 30,
@@ -605,7 +611,8 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                       endIndent: 30,
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 20),
                       decoration: BoxDecoration(
                         color: Colors.red.shade50,
                         borderRadius: BorderRadius.circular(16),
@@ -631,7 +638,8 @@ class _SignupPageState extends State<SignupPage> with SingleTickerProviderStateM
                               // Handle emergency call
                             },
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             child: const Text(

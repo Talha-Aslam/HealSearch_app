@@ -12,22 +12,22 @@ class Splash extends StatefulWidget {
 class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
   // Using AnimationController for more efficient animations
   late AnimationController _animationController;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animation controller
     _animationController = AnimationController(
-      vsync: this, 
+      vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
     _animationController.repeat();
-    
+
     // Use a more efficient way to navigate
     _navigateToHome();
   }
-  
+
   @override
   void dispose() {
     // Properly dispose the animation controller to prevent memory leaks
@@ -43,8 +43,10 @@ class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const Login(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const Login(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 500),
@@ -58,7 +60,7 @@ class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Container(
+      body: SizedBox(
         width: double.infinity,
         // Using Stack instead of Column for better layout performance
         child: Stack(
@@ -66,12 +68,12 @@ class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
           children: [
             // Pre-cached image for better performance
             Image.asset(
-              "images/logo3.png", 
+              "images/logo3.png",
               width: 400,
               // Using cacheWidth to optimize memory usage
               cacheWidth: 400,
             ),
-            
+
             // Position the loading indicator below the logo
             Positioned(
               bottom: MediaQuery.of(context).size.height * 0.35,

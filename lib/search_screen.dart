@@ -28,6 +28,7 @@ class _SearchState extends State<Search> {
   bool status1 = false;
 
   int status = 0;
+  String _selectedFilter = 'distance'; // 'distance' or 'price'
 
   late GlobalKey<ScaffoldState> _scaffoldKey;
   @override
@@ -121,6 +122,7 @@ class _SearchState extends State<Search> {
                           setState(() {
                             if (value == "" && status == 0) {
                               searchedProducts = allProducts;
+                              _applyFilter();
                             }
                             if (value != "" && status == 0) {
                               searchedProducts = allProducts
@@ -129,6 +131,7 @@ class _SearchState extends State<Search> {
                                       .toLowerCase()
                                       .contains(value.toLowerCase()))
                                   .toList();
+                              _applyFilter();
                             }
                           });
                         },
@@ -136,7 +139,9 @@ class _SearchState extends State<Search> {
                           prefixIcon: const Icon(Icons.search),
                           suffixIcon: IconButton(
                               icon: const Icon(Icons.filter_list_off_outlined),
-                              onPressed: () {}),
+                              onPressed: () {
+                                _showFilterDialog();
+                              }),
                           hintText: "Search",
                           filled: true,
                           fillColor: Colors.white,
@@ -181,6 +186,60 @@ class _SearchState extends State<Search> {
             )
           ]),
         ));
+  }
+
+  void _showFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.location_on),
+              title: const Text('Sort by Distance'),
+              onTap: () {
+                setState(() {
+                  _selectedFilter = 'distance';
+                  _applyFilter();
+                });
+                Navigator.pop(context);
+              },
+              selected: _selectedFilter == 'distance',
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_money),
+              title: const Text('Sort by Price'),
+              onTap: () {
+                setState(() {
+                  _selectedFilter = 'price';
+                  _applyFilter();
+                });
+                Navigator.pop(context);
+              },
+              selected: _selectedFilter == 'price',
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _applyFilter() {
+    if (_selectedFilter == 'distance') {
+      searchedProducts.sort((a, b) => double.parse(a["Distance"] as String)
+          .compareTo(double.parse(b["Distance"] as String)));
+    } else if (_selectedFilter == 'price') {
+      searchedProducts.sort((a, b) {
+        double priceA = double.tryParse(
+                (a["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
+            0;
+        double priceB = double.tryParse(
+                (b["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
+            0;
+        return priceA.compareTo(priceB);
+      });
+    }
   }
 
   Future<void> setLocation() async {

@@ -487,9 +487,9 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
         imageBytes = await imageFile.readAsBytes();
         String mimeType = 'image/jpeg'; // Basic MIME type inference
         final pathLower = imageFile.path.toLowerCase();
-        if (pathLower.endsWith('.png'))
+        if (pathLower.endsWith('.png')) {
           mimeType = 'image/png';
-        else if (pathLower.endsWith('.webp'))
+        } else if (pathLower.endsWith('.webp'))
           mimeType = 'image/webp';
         else if (pathLower.endsWith('.heic'))
           mimeType = 'image/heic';

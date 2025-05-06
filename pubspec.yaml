@@ -29,6 +29,7 @@ dependencies:
   cloud_firestore: ^4.13.6
   firebase_auth: ^4.15.3
   firebase_core: ^2.24.2
+  firebase_storage: ^11.6.5
   
   # Form validation
   form_field_validator: ^1.1.0
@@ -69,16 +70,16 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - images/logo1.png
-    - images/logo.png
-    - images/logo3.png
-    - images/logo4.png
-    - images/man.png
-    - images/plants2.png
-    - images/bkg.jpg
-    - images/favorite.png
-    - images/search.png
-    - images/back.png
-    - images/products.png
-    - images/user.png
-    - images/box.png
+    - Images/logo1.png
+    - Images/logo.png
+    - Images/logo3.png
+    - Images/logo4.png
+    - Images/man.png
+    - Images/plants2.png
+    - Images/bkg.jpg
+    - Images/favorite.png
+    - Images/search.png
+    - Images/back.png
+    - Images/products.png
+    - Images/user.png
+    - Images/box.png

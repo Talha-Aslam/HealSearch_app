@@ -21,7 +21,7 @@ class _ProfileState extends State<Profile> {
   String? phoneNumber;
   bool isLoading = false;
   String? errorMessage;
-  
+
   // Create instance of our Firebase API wrapper
   final _firebaseApi = Flutter_api();
 
@@ -36,7 +36,7 @@ class _ProfileState extends State<Profile> {
       try {
         // Use our improved getUserData method with caching
         final userData = await _firebaseApi.getUserData();
-        
+
         if (userData != null) {
           setState(() {
             name = userData['name'];
@@ -73,7 +73,7 @@ class _ProfileState extends State<Profile> {
     try {
       // Use our improved signOut method
       await _firebaseApi.signOut();
-      
+
       appData.clearUserData();
       Navigator.pushReplacement(
         context,
@@ -89,8 +89,9 @@ class _ProfileState extends State<Profile> {
   void _handleDeleteProfile() async {
     // Store the context in a variable that will be captured in the closure
     final BuildContext currentContext = context;
-    BuildContext? loadingDialogContext; // Define dialog context variable at method level
-    
+    BuildContext?
+        loadingDialogContext; // Define dialog context variable at method level
+
     showDialog(
       context: currentContext,
       builder: (BuildContext dialogContext) {
@@ -109,14 +110,15 @@ class _ProfileState extends State<Profile> {
               onPressed: () async {
                 // First close the confirmation dialog
                 Navigator.of(dialogContext).pop();
-                
+
                 // Delete user profile
-                if (appData.isLoggedIn && appData.Email != "You are not logged in") {
+                if (appData.isLoggedIn &&
+                    appData.Email != "You are not logged in") {
                   // Store variables to track state outside the try block for wider scope
                   bool shouldNavigateToLogin = false;
                   bool deletionSuccessful = false;
                   String? errorMessage;
-                  
+
                   try {
                     // Show a loading dialog
                     BuildContext? loadingDialogContext;
@@ -137,46 +139,46 @@ class _ProfileState extends State<Profile> {
                         );
                       },
                     );
-                    
+
                     final user = FirebaseAuth.instance.currentUser;
                     if (user != null) {
                       // Use a batch operation to delete user data from both collections
                       final batch = FirebaseFirestore.instance.batch();
-                      
+
                       // Delete from users collection
-                      batch.delete(
-                        FirebaseFirestore.instance.collection(FirestoreCollections.users).doc(user.uid)
-                      );
-                      
+                      batch.delete(FirebaseFirestore.instance
+                          .collection(FirestoreCollections.users)
+                          .doc(user.uid));
+
                       // Delete from legacy appData collection if email is available
                       if (appData.Email.isNotEmpty) {
-                        batch.delete(
-                          FirebaseFirestore.instance.collection(FirestoreCollections.appData).doc(appData.Email)
-                        );
+                        batch.delete(FirebaseFirestore.instance
+                            .collection(FirestoreCollections.appData)
+                            .doc(appData.Email));
                       }
-                      
+
                       // Commit batch operation
                       await batch.commit();
-                      
+
                       // The user needs to have recently signed in to delete their account
                       // First check when they last signed in
                       final metadata = user.metadata;
                       final lastSignInTime = metadata.lastSignInTime;
                       final now = DateTime.now();
-                      
+
                       // If the user hasn't signed in recently (within the last hour), we need to re-authenticate
-                      if (lastSignInTime == null || 
+                      if (lastSignInTime == null ||
                           now.difference(lastSignInTime).inMinutes > 60) {
-                        
                         // Close the loading dialog safely
-                        if (loadingDialogContext != null && Navigator.canPop(loadingDialogContext!)) {
+                        if (loadingDialogContext != null &&
+                            Navigator.canPop(loadingDialogContext!)) {
                           Navigator.of(loadingDialogContext!).pop();
                           loadingDialogContext = null;
                         }
-                        
+
                         // Create a password controller for re-authentication
                         final passwordController = TextEditingController();
-                        
+
                         // Show a dialog to get the user's password for re-authentication
                         final reAuthResult = await showDialog<bool>(
                           context: currentContext,
@@ -187,7 +189,8 @@ class _ProfileState extends State<Profile> {
                               content: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text("Please enter your password to confirm account deletion."),
+                                  const Text(
+                                      "Please enter your password to confirm account deletion."),
                                   const SizedBox(height: 16),
                                   TextField(
                                     controller: passwordController,
@@ -211,23 +214,30 @@ class _ProfileState extends State<Profile> {
                                   onPressed: () async {
                                     try {
                                       // Show loading indicator in dialog
-                                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                        const SnackBar(content: Text('Verifying...')),
+                                      ScaffoldMessenger.of(dialogContext)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text('Verifying...')),
                                       );
-                                      
+
                                       // Create credential
-                                      final credential = EmailAuthProvider.credential(
+                                      final credential =
+                                          EmailAuthProvider.credential(
                                         email: user.email!,
                                         password: passwordController.text,
                                       );
-                                      
+
                                       // Re-authenticate
-                                      await user.reauthenticateWithCredential(credential);
+                                      await user.reauthenticateWithCredential(
+                                          credential);
                                       Navigator.of(dialogContext).pop(true);
                                     } catch (e) {
                                       Navigator.of(dialogContext).pop(false);
-                                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                        SnackBar(content: Text('Authentication failed: ${e.toString()}')),
+                                      ScaffoldMessenger.of(dialogContext)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text(
+                                                'Authentication failed: ${e.toString()}')),
                                       );
                                     }
                                   },
@@ -236,13 +246,13 @@ class _ProfileState extends State<Profile> {
                             );
                           },
                         );
-                        
+
                         // If re-authentication was cancelled or failed, abort the deletion
                         if (reAuthResult != true) {
                           errorMessage = 'Account deletion cancelled';
                           return;
                         }
-                        
+
                         // Show loading dialog again
                         showDialog(
                           context: currentContext,
@@ -262,29 +272,31 @@ class _ProfileState extends State<Profile> {
                           },
                         );
                       }
-                      
+
                       try {
                         // Now try to delete the user authentication record
                         await user.delete();
-                        
+
                         // Clear cache and user data
                         _firebaseApi.clearCaches();
                         appData.clearUserData();
-                        
+
                         deletionSuccessful = true;
                         shouldNavigateToLogin = true;
                       } catch (e) {
-                        errorMessage = 'Failed to delete profile: ${e.toString()}';
+                        errorMessage =
+                            'Failed to delete profile: ${e.toString()}';
                       }
                     }
                   } catch (e) {
                     errorMessage = 'Failed to delete profile: ${e.toString()}';
                   } finally {
                     // Close loading dialog safely if it's still open
-                    if (loadingDialogContext != null && Navigator.canPop(loadingDialogContext!)) {
-                      Navigator.of(loadingDialogContext!).pop();
+                    if (loadingDialogContext != null &&
+                        Navigator.canPop(loadingDialogContext)) {
+                      Navigator.of(loadingDialogContext).pop();
                     }
-                    
+
                     // Show success or error message - but only if we're not navigating away
                     if (!shouldNavigateToLogin && errorMessage != null) {
                       ScaffoldMessenger.of(currentContext).showSnackBar(
@@ -293,24 +305,28 @@ class _ProfileState extends State<Profile> {
                     } else if (deletionSuccessful) {
                       // First show the success message
                       ScaffoldMessenger.of(currentContext).showSnackBar(
-                        const SnackBar(content: Text('Profile deleted successfully')),
+                        const SnackBar(
+                            content: Text('Profile deleted successfully')),
                       );
-                      
+
                       // Use a slight delay before navigation to allow the snackbar to be seen
                       await Future.delayed(const Duration(milliseconds: 500));
-                      
+
                       // Then navigate to login screen if the context is still valid
                       if (currentContext.mounted) {
                         Navigator.pushReplacement(
                           currentContext,
-                          MaterialPageRoute(builder: (context) => const Login()),
+                          MaterialPageRoute(
+                              builder: (context) => const Login()),
                         );
                       }
                     }
                   }
                 } else {
                   ScaffoldMessenger.of(currentContext).showSnackBar(
-                    const SnackBar(content: Text('You must be logged in to delete your profile')),
+                    const SnackBar(
+                        content: Text(
+                            'You must be logged in to delete your profile')),
                   );
                 }
               },
@@ -404,7 +420,7 @@ class _ProfileState extends State<Profile> {
                               fontSize: 26),
                         ),
                       ),
-                      if (errorMessage != null) 
+                      if (errorMessage != null)
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
@@ -422,14 +438,18 @@ class _ProfileState extends State<Profile> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => const ShowProfile()),
-                                ).then((_) => getprofile()); // Refresh data when returning
+                                      builder: (context) =>
+                                          const ShowProfile()),
+                                ).then((_) =>
+                                    getprofile()); // Refresh data when returning
                               },
-                              icon: const Icon(Icons.person, color: Colors.white),
+                              icon:
+                                  const Icon(Icons.person, color: Colors.white),
                               label: const Text('Show Profile'),
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: const Color.fromARGB(255, 190, 82, 15),
+                                backgroundColor:
+                                    const Color.fromARGB(255, 190, 82, 15),
                                 textStyle: const TextStyle(fontSize: 16),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 12, horizontal: 20),
@@ -444,14 +464,17 @@ class _ProfileState extends State<Profile> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => const UpdateProfile()),
-                                ).then((_) => getprofile()); // Refresh data when returning
+                                      builder: (context) =>
+                                          const UpdateProfile()),
+                                ).then((_) =>
+                                    getprofile()); // Refresh data when returning
                               },
                               icon: const Icon(Icons.edit, color: Colors.white),
                               label: const Text('Update Profile'),
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: const Color.fromARGB(188, 255, 140, 0),
+                                backgroundColor:
+                                    const Color.fromARGB(188, 255, 140, 0),
                                 textStyle: const TextStyle(fontSize: 16),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 12, horizontal: 20),
@@ -463,7 +486,8 @@ class _ProfileState extends State<Profile> {
                             const SizedBox(height: 20),
                             ElevatedButton.icon(
                               onPressed: _handleDeleteProfile,
-                              icon: const Icon(Icons.delete, color: Colors.white),
+                              icon:
+                                  const Icon(Icons.delete, color: Colors.white),
                               label: const Text('Delete Profile'),
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,

@@ -23,7 +23,7 @@ Future<void> _initializeServices() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
+
     // Only mobile-specific configurations from here
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
@@ -37,7 +37,7 @@ Future<void> _initializeServices() async {
         try {
           final uid = user.uid;
           debugPrint('User is signed in with UID: $uid');
-          
+
           // Preemptively initialize app data to avoid issues later
           try {
             // Try to force a data fetch in advance to catch any issues
@@ -48,27 +48,32 @@ Future<void> _initializeServices() async {
                 .then((doc) {
               if (doc.exists) {
                 debugPrint('Successfully pre-loaded user data');
-                
+
                 // Ensure all required fields exist
                 final data = doc.data();
-                if (data != null && (!data.containsKey('phoneNumber') || !data.containsKey('name'))) {
+                if (data != null &&
+                    (!data.containsKey('phoneNumber') ||
+                        !data.containsKey('name'))) {
                   // Add missing fields if needed
                   Map<String, dynamic> updates = {};
-                  if (!data.containsKey('phoneNumber') && data.containsKey('phNo')) {
+                  if (!data.containsKey('phoneNumber') &&
+                      data.containsKey('phNo')) {
                     updates['phoneNumber'] = data['phNo'];
                   }
                   if (!data.containsKey('name') && user.displayName != null) {
                     updates['name'] = user.displayName;
                   }
-                  
+
                   // Update the document if we have fields to update
                   if (updates.isNotEmpty) {
                     FirebaseFirestore.instance
                         .collection('users')
                         .doc(uid)
                         .update(updates)
-                        .then((_) => debugPrint('Updated missing user data fields'))
-                        .catchError((e) => debugPrint('Error updating user data: $e'));
+                        .then((_) =>
+                            debugPrint('Updated missing user data fields'))
+                        .catchError(
+                            (e) => debugPrint('Error updating user data: $e'));
                   }
                 }
               }
@@ -80,12 +85,12 @@ Future<void> _initializeServices() async {
             // Ignore any errors here
           }
         } catch (e) {
-          // Handle PigeonUserDetails and other common errors 
-          if (e.toString().contains('PigeonUserDetails') || 
+          // Handle PigeonUserDetails and other common errors
+          if (e.toString().contains('PigeonUserDetails') ||
               e.toString().contains('List<Object?>') ||
               e.toString().contains('invalid-credential')) {
             debugPrint('Caught Firebase User error safely: $e');
-            
+
             // Try to recover by refreshing the Firebase Auth instance
             try {
               FirebaseAuth.instance.signOut().then((_) {
@@ -107,11 +112,11 @@ Future<void> _initializeServices() async {
       _services.add(connectivity);
       final connectivityResult = await connectivity.checkConnectivity();
       debugPrint('Initial connectivity status: $connectivityResult');
-      
+
       // Add a connectivity listener for debugging
       connectivity.onConnectivityChanged.listen((result) {
         debugPrint('Connectivity changed: $result');
-        
+
         // If connection restored, try to validate Firebase connection
         if (result != ConnectivityResult.none) {
           _validateFirebaseConnection();
@@ -132,14 +137,11 @@ Future<void> _validateFirebaseConnection() async {
     await FirebaseFirestore.instance
         .collection('app_status')
         .doc('connectivity_test')
-        .set({
-          'timestamp': FieldValue.serverTimestamp(),
-          'status': 'online'
-        });
+        .set({'timestamp': FieldValue.serverTimestamp(), 'status': 'online'});
     debugPrint('Firebase connection validated successfully');
   } catch (e) {
     debugPrint('Firebase connection test failed: $e');
-    
+
     // Try to reinitialize Firebase if needed
     try {
       await Firebase.initializeApp(
@@ -161,7 +163,7 @@ String? safeGetFirebaseUid() {
     // Handle specific error types
     if (e.toString().contains('PigeonUserDetails')) {
       debugPrint('PigeonUserDetails error accessing Firebase user');
-      
+
       // Try refreshing the Auth state by signing out and in again
       try {
         FirebaseAuth.instance.signOut();
@@ -201,7 +203,7 @@ void main() async {
   // Enable error handling for platform channel errors (helps with OpenGL errors)
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    
+
     // Filter out OpenGL ES API errors which are not critical
     if (details.exception.toString().contains('OpenGL ES API')) {
       debugPrint('Non-critical OpenGL error: ${details.exception}');
