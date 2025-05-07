@@ -239,14 +239,42 @@ class _UpdateProfileState extends State<UpdateProfile> {
                             children: [
                               CircleAvatar(
                                 radius: 50,
-                                backgroundImage: _profileImage != null
-                                    ? FileImage(_profileImage!)
-                                    : (_existingProfileImageUrl != null &&
-                                            _existingProfileImageUrl!.isNotEmpty
-                                        ? NetworkImage(
-                                            _existingProfileImageUrl!)
-                                        : const AssetImage("Images/man.png")
-                                            as ImageProvider),
+                                backgroundColor: Colors.white,
+                                child: ClipOval(
+                                  child: _profileImage != null
+                                      ? Image.file(
+                                          _profileImage!,
+                                          width: 100,
+                                          height: 100,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : (_existingProfileImageUrl != null &&
+                                              _existingProfileImageUrl!
+                                                  .isNotEmpty
+                                          ? Image.network(
+                                              _existingProfileImageUrl!,
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                              cacheWidth: 200,
+                                              cacheHeight: 200,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Image.asset(
+                                                  "Images/man.png",
+                                                  width: 100,
+                                                  height: 100,
+                                                  fit: BoxFit.cover,
+                                                );
+                                              },
+                                            )
+                                          : Image.asset(
+                                              "Images/man.png",
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                            )),
+                                ),
                               ),
                               Positioned(
                                 bottom: 0,

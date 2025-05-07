@@ -340,15 +340,28 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
                       _focusNode, // Attach the FocusNode to the TextField
                   enabled: !_isLoading,
                   textCapitalization: TextCapitalization.sentences,
+                  style: TextStyle(
+                    // Use contrasting text color based on theme brightness
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     hintText:
                         'Describe mild symptoms here...', // Updated hint text
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(25.0),
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.grey[800],
+                    fillColor: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800] // Dark theme: dark gray
+                        : Colors.grey[200], // Light theme: light gray
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 10.0),
                   ),
@@ -437,15 +450,49 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
   }
 
   Future<void> _pickImage() async {
-    // ... (Keep the original _pickImage logic as before)
     final ImagePicker picker = ImagePicker();
     try {
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      if (image != null && mounted) {
-        // Check mounted after await
-        setState(() {
-          _pickedImage = image;
-        });
+      // Show a bottom sheet to select image source
+      if (mounted) {
+        await showModalBottomSheet(
+          context: context,
+          builder: (BuildContext context) {
+            return SafeArea(
+              child: Wrap(
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(Icons.photo_library),
+                    title: const Text('Gallery'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final XFile? image =
+                          await picker.pickImage(source: ImageSource.gallery);
+                      if (image != null && mounted) {
+                        setState(() {
+                          _pickedImage = image;
+                        });
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.camera_alt),
+                    title: const Text('Camera'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final XFile? photo =
+                          await picker.pickImage(source: ImageSource.camera);
+                      if (photo != null && mounted) {
+                        setState(() {
+                          _pickedImage = photo;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
       }
     } catch (e) {
       _showError('Error picking image: $e');

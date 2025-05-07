@@ -16,30 +16,45 @@ class Navbar extends StatelessWidget {
       padding: EdgeInsets.zero,
       children: [
         UserAccountsDrawerHeader(
-          accountName: const Text(
+          accountName: Text(
             'Logged In as:',
             style: TextStyle(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
                 fontWeight: FontWeight.normal,
                 fontSize: 16),
           ),
           accountEmail: Text(
             appData.Email,
-            style: const TextStyle(
-                color: Colors.white,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
                 fontWeight: FontWeight.normal,
                 fontSize: 18),
           ),
-          currentAccountPicture: const CircleAvatar(
-            maxRadius: 30,
-            minRadius: 30,
-            backgroundImage: AssetImage("images/man.png"),
-          ),
-          decoration: const BoxDecoration(
-              color: Colors.blue,
+          currentAccountPicture:
+              (appData.profileImage != null && appData.profileImage!.isNotEmpty)
+                  ? CircleAvatar(
+                      maxRadius: 30,
+                      minRadius: 30,
+                      backgroundColor: Colors.white,
+                      backgroundImage: NetworkImage(
+                        appData.profileImage!,
+                      ),
+                    )
+                  : const CircleAvatar(
+                      maxRadius: 30,
+                      minRadius: 30,
+                      backgroundColor: Colors.white,
+                      backgroundImage: AssetImage("Images/man.png"),
+                    ),
+          decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
               image: DecorationImage(
-                image: AssetImage("images/bkg.jpg"),
+                image: AssetImage("Images/bkg.jpg"),
                 fit: BoxFit.cover,
+                colorFilter: Theme.of(context).brightness == Brightness.dark
+                    ? ColorFilter.mode(
+                        Colors.black.withOpacity(0.5), BlendMode.darken)
+                    : null,
               )),
         ),
         ListTile(
@@ -87,22 +102,6 @@ class Navbar extends StatelessWidget {
           },
           title: const Text(
             'Profile',
-            style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.login, size: 30),
-          onTap: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (BuildContext context) {
-              return const Login();
-            }));
-          },
-          title: const Text(
-            'Login',
             style: TextStyle(
                 color: Colors.grey,
                 fontWeight: FontWeight.normal,

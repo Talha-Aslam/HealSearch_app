@@ -6,12 +6,15 @@ class AppData {
   String Email = "You are not logged in";
   String? userName;
   String? phoneNumber;
+  String? profileImage;
 
   // Set user data after successful login
-  void setUserData(String email, String name, String phone) {
+  void setUserData(String email, String name, String phone,
+      [String? profileImageUrl]) {
     Email = email;
     userName = name;
     phoneNumber = phone;
+    profileImage = profileImageUrl;
     isLoggedIn = true;
   }
 
@@ -21,6 +24,7 @@ class AppData {
     Email = "You are not logged in";
     userName = null;
     phoneNumber = null;
+    profileImage = null;
   }
 
   factory AppData() {

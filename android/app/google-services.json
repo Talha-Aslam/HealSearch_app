@@ -12,7 +12,20 @@
           "package_name": "com.example.healsearch_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "269639114847-557tekrq9e1bqkct9clhlqibvjqhmuvk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.healsearch_app",
+            "certificate_hash": "7dfcf23fa95c34ccb71b237283dd6463d8b444bd"
+          }
+        },
+        {
+          "client_id": "269639114847-7qh1fdr4lmsn4eh3njflps6q62qaj179.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDulVR9UD11zhJ2gUuyPYe42Srpd4X21G8"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "269639114847-7qh1fdr4lmsn4eh3njflps6q62qaj179.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "269639114847-f2gotn92jb791cej1s4p9cgi92nh37ur.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flutterApplication1"
+              }
+            }
+          ]
         }
       }
     }

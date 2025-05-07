@@ -238,9 +238,9 @@ class CardView extends StatelessWidget {
                       "Edit",
                       style: TextStyle(
                         fontFamily: "Montserrat",
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                         fontWeight: FontWeight.w100,
-                        fontSize: MediaQuery.of(context).size.width / 110,
+                        fontSize: 15,
                       ),
                     ),
                   ),

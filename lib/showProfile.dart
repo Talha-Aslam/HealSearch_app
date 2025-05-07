@@ -31,7 +31,7 @@ class _ShowProfileState extends State<ShowProfile> {
 
     try {
       final userData = await _api.getUserData();
-      
+
       setState(() {
         _userData = userData;
         _isLoading = false;
@@ -57,10 +57,12 @@ class _ShowProfileState extends State<ShowProfile> {
         ),
         backgroundColor: const Color.fromARGB(255, 190, 82, 15),
       ),
-      body: _isLoading 
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
-              ? Center(child: Text(_errorMessage, style: const TextStyle(color: Colors.red)))
+              ? Center(
+                  child: Text(_errorMessage,
+                      style: const TextStyle(color: Colors.red)))
               : _buildProfileContent(),
     );
   }
@@ -75,10 +77,36 @@ class _ShowProfileState extends State<ShowProfile> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
+          Center(
             child: CircleAvatar(
               radius: 50,
-              backgroundImage: AssetImage("Images/man.png"),
+              backgroundColor: Colors.white,
+              child: ClipOval(
+                child: (_userData?['profileImage'] != null &&
+                        (_userData?['profileImage'] as String).isNotEmpty)
+                    ? Image.network(
+                        _userData!['profileImage'],
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        cacheWidth: 200,
+                        cacheHeight: 200,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            "Images/man.png",
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.cover,
+                          );
+                        },
+                      )
+                    : Image.asset(
+                        "Images/man.png",
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -120,7 +148,9 @@ class _ShowProfileState extends State<ShowProfile> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              subtitle: Text(_userData?['phoneNumber'] ?? _userData?['phNo'] ?? 'Not available'),
+              subtitle: Text(_userData?['phoneNumber'] ??
+                  _userData?['phNo'] ??
+                  'Not available'),
             ),
           ),
           const SizedBox(height: 20),

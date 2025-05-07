@@ -233,26 +233,46 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Use a consistent color scheme based on your app's primary color
+    const primaryColor = Color(0xFFE94057);
+    const darkBackgroundColor = Color(0xFF121212);
+
     return MaterialApp(
       title: 'Search A Holic',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: primaryColor,
           brightness: Brightness.light,
         ),
+        scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
         // Improve rendering performance
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        // Prevent theme flash during startup
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: primaryColor,
+        ),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: primaryColor,
           brightness: Brightness.dark,
         ),
+        scaffoldBackgroundColor: darkBackgroundColor,
         useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        // Prevent theme flash during startup in dark mode
+        appBarTheme: const AppBarTheme(
+          backgroundColor: darkBackgroundColor,
+          foregroundColor: Colors.white,
+        ),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
       ),
       home: const Splash(),
     );
