@@ -8,9 +8,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 class Navbar extends StatelessWidget {
   const Navbar({super.key});
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface.withOpacity(0.8);
+    final iconColor = theme.colorScheme.primary;
+
     return Drawer(
         child: ListView(
       padding: EdgeInsets.zero,
@@ -58,73 +61,72 @@ class Navbar extends StatelessWidget {
               )),
         ),
         ListTile(
-          leading: const Icon(
+          leading: Icon(
             Icons.search,
             size: 30,
+            color: iconColor,
           ),
-          title: const Text(
+          title: Text(
             'Search',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
           onTap: () {
             // pop closes the drawer
             Navigator.pop(context);
           },
-          trailing: const Icon(Icons.arrow_forward, size: 25),
+          trailing: Icon(Icons.arrow_forward, size: 25, color: iconColor),
           // ignore: avoid_returning_null_for_void
         ),
         ListTile(
-          leading: const Icon(Icons.assessment_rounded, size: 30),
+          leading: Icon(Icons.assessment_rounded, size: 30, color: iconColor),
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return ChatScreen();
             }));
           },
-          title: const Text(
+          title: Text(
             'AI ChatBot',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         ListTile(
-          leading: const Icon(Icons.person, size: 30),
+          leading: Icon(Icons.person, size: 30, color: iconColor),
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return const Profile();
             }));
           },
-          title: const Text(
+          title: Text(
             'Profile',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         ListTile(
-          leading: const Icon(Icons.contact_mail, size: 30),
+          leading: Icon(Icons.contact_mail, size: 30, color: iconColor),
           onTap: () {
             showDialog(
               context: context,
               builder: (BuildContext context) {
+                final dialogTheme = Theme.of(context);
+                final primaryColor = dialogTheme.colorScheme.primary;
+
                 return AlertDialog(
+                  backgroundColor: dialogTheme.colorScheme.surface,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20.0),
                   ),
-                  title: const Center(
+                  title: Center(
                     child: Text(
                       'Contact Us',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 24,
-                        color: Colors.blue,
+                        color: primaryColor,
                       ),
                     ),
                   ),
@@ -137,40 +139,79 @@ class Navbar extends StatelessWidget {
                           padding: EdgeInsets.all(15),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.blue.withOpacity(0.1),
+                            color: primaryColor.withOpacity(0.1),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.contact_mail,
                             size: 60,
-                            color: Colors.blue,
+                            color: primaryColor,
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'HealSearch Developers',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                            color: dialogTheme.colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Divider(),
-                        const ListTile(
-                          leading: Icon(Icons.email, color: Colors.blue),
-                          title: Text('Email'),
-                          subtitle: Text('talha@student.uol.edu.pk'),
+                        Divider(
+                            color: dialogTheme.colorScheme.onSurface
+                                .withOpacity(0.2)),
+                        ListTile(
+                          leading: Icon(Icons.email, color: primaryColor),
+                          title: Text(
+                            'Email',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: dialogTheme.colorScheme.onSurface,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'talha@student.uol.edu.pk',
+                            style: TextStyle(
+                              color: dialogTheme.colorScheme.onSurface
+                                  .withOpacity(0.7),
+                            ),
+                          ),
                           dense: true,
                         ),
-                        const ListTile(
-                          leading: Icon(Icons.phone, color: Colors.blue),
-                          title: Text('Phone'),
-                          subtitle: Text('+92 123 456 7890'),
+                        ListTile(
+                          leading: Icon(Icons.phone, color: primaryColor),
+                          title: Text(
+                            'Phone',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: dialogTheme.colorScheme.onSurface,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '+92 123 456 7890',
+                            style: TextStyle(
+                              color: dialogTheme.colorScheme.onSurface
+                                  .withOpacity(0.7),
+                            ),
+                          ),
                           dense: true,
                         ),
-                        const ListTile(
-                          leading: Icon(Icons.location_on, color: Colors.blue),
-                          title: Text('Address'),
-                          subtitle: Text('University of Lahore, Pakistan'),
+                        ListTile(
+                          leading: Icon(Icons.location_on, color: primaryColor),
+                          title: Text(
+                            'Address',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: dialogTheme.colorScheme.onSurface,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'University of Lahore, Pakistan',
+                            style: TextStyle(
+                              color: dialogTheme.colorScheme.onSurface
+                                  .withOpacity(0.7),
+                            ),
+                          ),
                           dense: true,
                         ),
                       ],
@@ -179,16 +220,17 @@ class Navbar extends StatelessWidget {
                   actions: [
                     TextButton(
                       style: TextButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: primaryColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 20, vertical: 10),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Close',
-                        style: TextStyle(color: Colors.white),
+                        style:
+                            TextStyle(color: dialogTheme.colorScheme.onPrimary),
                       ),
                       onPressed: () {
                         Navigator.of(context).pop();
@@ -204,26 +246,22 @@ class Navbar extends StatelessWidget {
           title: Text(
             'Contact Us',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         const Divider(),
         ListTile(
-          leading: const Icon(Icons.exit_to_app, size: 30),
+          leading: Icon(Icons.exit_to_app, size: 30, color: iconColor),
           onTap: () {
             Navigator.pushAndRemoveUntil(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return const Login();
             }), (Route<dynamic> route) => false);
           },
-          title: const Text(
+          title: Text(
             'Logout',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
       ],

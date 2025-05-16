@@ -42,10 +42,20 @@ Iâ€™m here to support you â€” but please remember:
 You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜Š
   """;
   // --- End of Prompt ---
-
   @override
   void initState() {
     super.initState();
+
+    // Setup keyboard focus management
+    _focusNode.addListener(() {
+      // When the text field gets focus, make sure UI adjusts
+      if (_focusNode.hasFocus) {
+        // Add post-frame callback to scroll to bottom when keyboard appears
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToBottom();
+        });
+      }
+    });
 
     if (geminiApiKey == geminiApiKey) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -115,78 +125,97 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
   }
 
   // --- UI Building Methods ---
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+    return GestureDetector(
+      // Add GestureDetector to handle taps outside the text field
+      onTap: () {
+        // Dismiss keyboard when tapping outside the text field
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        // Use resizeToAvoidBottomInset to ensure the UI adjusts correctly with keyboard
+        resizeToAvoidBottomInset: true,
+        appBar: AppBar(
+          centerTitle: true,
+          titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+          title: const Text('AI Doctor'), // Updated Title
+          elevation: 1.0,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFF8A2387),
+                  Color(0xFFE94057),
+                  Color(0xFFF27121),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-        title: const Text('AI Doctor'), // Updated Title
-        elevation: 1.0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Color(0xFF8A2387),
-                Color(0xFFE94057),
-                Color(0xFFF27121),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+          ),
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          bottom: PreferredSize(
+            // Add a subtle disclaimer reminder in the AppBar
+            preferredSize: const Size.fromHeight(20.0),
+            child: Container(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withOpacity(0.5),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 2.0),
+              child: Text(
+                "Make sure to always Consult a Doctor.",
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 12.0,
+                    ),
+              ),
             ),
           ),
         ),
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        bottom: PreferredSize(
-          // Add a subtle disclaimer reminder in the AppBar
-          preferredSize: const Size.fromHeight(20.0),
-          child: Container(
-            color:
-                Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(vertical: 2.0),
-            child: Text(
-              "Make sure to always Consult a Doctor.",
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12.0,
-                  ),
-            ),
+        body: SafeArea(
+          // Wrap in SafeArea to respect system UI elements
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    // Add extra spacing/styling for the initial disclaimer
+                    if (index == 0 &&
+                        _messages[index].sender == MessageSender.model &&
+                        _messages[index]
+                            .text
+                            .contains("VERY IMPORTANT DISCLAIMER")) {
+                      return _buildDisclaimerMessageItem(_messages[index]);
+                    }
+                    return _buildMessageItem(_messages[index]);
+                  },
+                ),
+              ),
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10.0),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              // Use AnimatedContainer for smooth transitions when keyboard appears
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                child: _buildInputArea(),
+              ),
+            ],
           ),
         ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(vertical: 10.0),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                // Add extra spacing/styling for the initial disclaimer
-                if (index == 0 &&
-                    _messages[index].sender == MessageSender.model &&
-                    _messages[index]
-                        .text
-                        .contains("VERY IMPORTANT DISCLAIMER")) {
-                  return _buildDisclaimerMessageItem(_messages[index]);
-                }
-                return _buildMessageItem(_messages[index]);
-              },
-            ),
-          ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10.0),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          _buildInputArea(),
-        ],
       ),
     );
   }
@@ -239,39 +268,141 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
     final isUserMessage = message.sender == MessageSender.user;
     final alignment =
         isUserMessage ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final color = isUserMessage
-        ? Theme.of(context).colorScheme.primaryContainer
-        : Theme.of(context).colorScheme.surfaceVariant;
-    final textColor = isUserMessage
-        ? Theme.of(context).colorScheme.onPrimaryContainer
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+
+    // Enhanced theming with better color contrast
+    final Color color;
+    final Gradient? gradient;
+    final Color textColor;
+
+    if (isUserMessage) {
+      // User messages - gradient styling
+      color = Theme.of(context).colorScheme.primary.withOpacity(0.8);
+      textColor = Colors.white;
+      gradient = LinearGradient(
+        colors: [
+          Color(0xFF8A2387).withOpacity(0.9),
+          Color(0xFFE94057).withOpacity(0.9),
+          Color(0xFFF27121).withOpacity(0.9),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    } else {
+      // AI message styling - more visually appealing
+      textColor = Theme.of(context).brightness == Brightness.dark
+          ? Colors.white
+          : Theme.of(context).colorScheme.onSurface;
+
+      // For dark mode, use more contrasting container
+      if (Theme.of(context).brightness == Brightness.dark) {
+        color = Color(0xFF2A2A2A); // Dark gray with better contrast
+        gradient = LinearGradient(
+          colors: [
+            Color(0xFF2A2A2A),
+            Color(0xFF363636),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+      } else {
+        // Light mode
+        color = Colors.white;
+        gradient = LinearGradient(
+          colors: [
+            Colors.white,
+            Color(0xFFF8F8F8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
       child: Column(
         crossAxisAlignment: alignment,
         children: [
+          // Time indicator above message with smaller font
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: 2.0,
+              left: isUserMessage ? 0 : 8.0,
+              right: isUserMessage ? 8.0 : 0,
+            ),
+            child: Text(
+              _formatTimeStamp(message.timestamp),
+              style: TextStyle(
+                fontSize: 10.0,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Colors.grey[600],
+              ),
+            ),
+          ),
+
+          // Message bubble
           ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth:
-                  MediaQuery.of(context).size.width * 0.75, // Max bubble width
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
-            child: Card(
-              elevation: 0.5,
-              color: color,
-              shape: RoundedRectangleBorder(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: gradient,
+                color: color,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16.0),
                   topRight: const Radius.circular(16.0),
                   bottomLeft: Radius.circular(isUserMessage ? 16.0 : 0),
                   bottomRight: Radius.circular(isUserMessage ? 0 : 16.0),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isUserMessage
+                        ? Colors.black.withOpacity(0.1)
+                        : Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(0.2)
+                            : Colors.black.withOpacity(0.05),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Add AI icon for bot messages
+                    if (!isUserMessage)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.medical_services_outlined,
+                              size: 16,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Color(0xFFFFA726) // Orange in dark mode
+                                  : Theme.of(context).colorScheme.primary,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              "AI Doctor",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Color(0xFFFFA726) // Orange in dark mode
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     if (message.image != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8.0),
@@ -286,33 +417,198 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
                         ),
                       ),
                     if (message.text.isNotEmpty)
-                      Text(
-                        message.text,
-                        style: TextStyle(
-                            color: textColor, height: 1.4), // Line height
-                      ),
+                      _buildFormattedText(
+                          message.text, textColor, isUserMessage),
                   ],
                 ),
               ),
             ),
           ),
+
+          // Add small spacing after each message
+          SizedBox(height: 2.0),
         ],
       ),
     );
   }
 
+  // Helper method to format message timestamps
+  String _formatTimeStamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate =
+        DateTime(timestamp.year, timestamp.month, timestamp.day);
+
+    if (messageDate == today) {
+      // Today: show time only
+      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    } else if (messageDate == today.subtract(const Duration(days: 1))) {
+      // Yesterday
+      return 'Yesterday, ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    } else {
+      // Other days
+      return '${timestamp.day}/${timestamp.month}, ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
+  }
+
+  // Helper method to build formatted message text with support for basic markdown-like formatting
+  Widget _buildFormattedText(String text, Color textColor, bool isUserMessage) {
+    // Process the text for basic formatting
+    if (isUserMessage) {
+      // For user messages, just show plain text
+      return Text(
+        text,
+        style: TextStyle(
+          color: textColor,
+          height: 1.4,
+          fontSize: 15.0,
+        ),
+      );
+    } else {
+      // For AI responses, we'll parse basic markdown-like formatting for richer display
+      final List<InlineSpan> spans = [];
+
+      // Regular expressions for basic formatting
+      final boldRegex = RegExp(r'\*\*(.*?)\*\*');
+      final listItemRegex = RegExp(r'^\s*[-â€¢*]\s(.+)$', multiLine: true);
+
+      // Store the last end position to track where we left off
+      int lastMatchEnd = 0;
+
+      // Find all bold text
+      final boldMatches = boldRegex.allMatches(text);
+      for (final match in boldMatches) {
+        // Add normal text before this match
+        if (match.start > lastMatchEnd) {
+          spans.add(TextSpan(
+            text: text.substring(lastMatchEnd, match.start),
+            style: TextStyle(
+              color: textColor,
+              height: 1.5,
+              fontSize: 15.0,
+            ),
+          ));
+        }
+
+        // Add the bold text (without ** markers)
+        spans.add(TextSpan(
+          text: match.group(1),
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Color(0xFFFFA726) // Orange highlight in dark mode
+                : Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.bold,
+            height: 1.5,
+            fontSize: 15.0,
+          ),
+        ));
+
+        lastMatchEnd = match.end;
+      }
+
+      // Add remaining text after the last match
+      if (lastMatchEnd < text.length) {
+        spans.add(TextSpan(
+          text: text.substring(lastMatchEnd),
+          style: TextStyle(
+            color: textColor,
+            height: 1.5,
+            fontSize: 15.0,
+          ),
+        ));
+      }
+
+      // If no formatting was detected, just add the whole text as a single span
+      if (spans.isEmpty) {
+        // Process list items if present
+        final listItems = listItemRegex.allMatches(text);
+        if (listItems.isNotEmpty) {
+          // Handle list items with special styling
+          int lastPos = 0;
+          for (final item in listItems) {
+            if (item.start > lastPos) {
+              // Add text before this list item
+              spans.add(TextSpan(
+                text: text.substring(lastPos, item.start),
+                style: TextStyle(color: textColor, height: 1.5, fontSize: 15.0),
+              ));
+            }
+
+            // Add the list item with bullet styling
+            spans.add(TextSpan(
+              text: "â€¢ ", // Replace with a proper bullet
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                height: 1.5,
+                fontSize: 16.0,
+              ),
+            ));
+
+            spans.add(TextSpan(
+              text: item.group(1), // The list item text without the bullet
+              style: TextStyle(color: textColor, height: 1.5, fontSize: 15.0),
+            ));
+
+            lastPos = item.end;
+          }
+
+          // Add remaining text after the last list item
+          if (lastPos < text.length) {
+            spans.add(TextSpan(
+              text: text.substring(lastPos),
+              style: TextStyle(color: textColor, height: 1.5, fontSize: 15.0),
+            ));
+          }
+        } else {
+          // Plain text with no formatting
+          spans.add(TextSpan(
+            text: text,
+            style: TextStyle(color: textColor, height: 1.5, fontSize: 15.0),
+          ));
+        }
+      }
+
+      return RichText(
+        text: TextSpan(children: spans),
+        textAlign: TextAlign.left,
+      );
+    }
+  }
+
   Widget _buildInputArea() {
+    // Use MediaQuery to adjust padding based on keyboard visibility
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      padding: EdgeInsets.only(
+        left: 8.0,
+        right: 8.0,
+        top: 8.0,
+        bottom:
+            bottomInset > 0 ? 8.0 : 8.0 + MediaQuery.of(context).padding.bottom,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Color(0xFF1E1E1E) // Darker background for dark mode
+            : Colors.white, // Pure white for light mode
         boxShadow: [
           BoxShadow(
-            offset: const Offset(0, -1),
-            blurRadius: 4.0,
-            color: Colors.black.withOpacity(0.1),
+            offset: const Offset(0, -2),
+            blurRadius: 6.0,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.black.withOpacity(0.2)
+                : Colors.black.withOpacity(0.1),
           ),
         ],
+        // Add a subtle border at the top
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade800
+                : Colors.grey.shade200,
+            width: 0.5,
+          ),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min, // Takes minimum space needed
@@ -322,70 +618,148 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
 
           // Input Row
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end, // Align items at bottom
             children: [
-              // Image Picker Button (Maybe less relevant for symptoms, but keep for flexibility)
-              IconButton(
-                icon: Icon(
-                  Icons.image_outlined,
-                  color: Color.fromARGB(255, 205, 13, 39),
+              // Image Picker Button with improved styling
+              Container(
+                margin: const EdgeInsets.only(right: 4.0, bottom: 4.0),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Color(0xFF2A2A2A)
+                      : Color(0xFFE8E8E8),
                 ),
-                onPressed: _isLoading ? null : _pickImage,
-                tooltip: 'Add Image (Optional)',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: _isLoading ? null : _pickImage,
+                    child: Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Icon(
+                        Icons.image_outlined,
+                        color: _isLoading
+                            ? Theme.of(context).disabledColor
+                            : Theme.of(context).brightness == Brightness.dark
+                                ? Color(0xFFFFA726) // Orange in dark mode
+                                : Color(0xFFE94057), // App color in light mode
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
               ),
+
               // Text Field
               Expanded(
-                child: TextField(
-                  controller: _textController,
-                  focusNode:
-                      _focusNode, // Attach the FocusNode to the TextField
-                  enabled: !_isLoading,
-                  textCapitalization: TextCapitalization.sentences,
-                  style: TextStyle(
-                    // Use contrasting text color based on theme brightness
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black87,
-                  ),
-                  decoration: InputDecoration(
-                    hintText:
-                        'Describe mild symptoms here...', // Updated hint text
-                    hintStyle: TextStyle(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: TextField(
+                    controller: _textController,
+                    focusNode: _focusNode,
+                    enabled: !_isLoading,
+                    textCapitalization: TextCapitalization.sentences,
+                    keyboardType: TextInputType.multiline,
+                    maxLines: 4,
+                    minLines: 1,
+                    style: TextStyle(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
+                          ? Colors.white
+                          : Colors.black87,
+                      fontSize: 16.0,
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25.0),
-                      borderSide: BorderSide.none,
+                    decoration: InputDecoration(
+                      hintText: 'Describe mild symptoms here...',
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[400]
+                            : Colors.grey[500],
+                        fontSize: 15.0,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Color(0xFF2A2A2A) // Darker but not too dark
+                          : Color(0xFFF5F5F5), // Very light gray
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 10.0),
+                      isDense: true,
                     ),
-                    filled: true,
-                    fillColor: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[800] // Dark theme: dark gray
-                        : Colors.grey[200], // Light theme: light gray
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 10.0),
+                    onSubmitted: _isLoading ? null : (_) => _sendMessage(),
+                    onChanged: (_) =>
+                        setState(() {}), // Rebuild to update button state
                   ),
-                  onSubmitted: _isLoading ? null : (_) => _sendMessage(),
                 ),
               ),
-              const SizedBox(width: 8.0),
-              // Send Button
-              IconButton(
-                icon: Icon(
-                  Icons.send,
-                  color: const Color.fromARGB(255, 205, 13, 39),
+
+              const SizedBox(width: 4.0),
+              // Send Button - Using a more styled approach
+              Container(
+                margin: const EdgeInsets.only(left: 2.0, bottom: 2.0),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: _isLoading ||
+                          (_textController.text.isEmpty && _pickedImage == null)
+                      ? null // No gradient when disabled
+                      : LinearGradient(
+                          colors: [
+                            Color(0xFF8A2387),
+                            Color(0xFFE94057),
+                            Color(0xFFF27121),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                  color: _isLoading ||
+                          (_textController.text.isEmpty && _pickedImage == null)
+                      ? Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[800]
+                          : Colors.grey[300]
+                      : null, // Use null to let gradient show
+                  boxShadow: _isLoading ||
+                          (_textController.text.isEmpty && _pickedImage == null)
+                      ? null
+                      : [
+                          BoxShadow(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.black.withOpacity(0.2)
+                                    : Colors.black.withOpacity(0.1),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                 ),
-                onPressed: _isLoading ||
-                        (_textController.text.isEmpty && _pickedImage == null)
-                    ? null
-                    : () {
-                        FocusScope.of(context)
-                            .unfocus(); // Ensure keyboard is dismissed
-                        debugPrint(
-                            "Send button pressed"); // Debugging log to confirm button press
-                        _sendMessage(); // Trigger send message immediately
-                      },
-                tooltip: 'Send Message',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(25),
+                    onTap: _isLoading ||
+                            (_textController.text.isEmpty &&
+                                _pickedImage == null)
+                        ? null
+                        : () {
+                            debugPrint("Send button pressed - tap triggered");
+                            FocusScope.of(context).unfocus();
+                            _sendMessage();
+                          },
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Icon(
+                        Icons.send,
+                        color: _isLoading ||
+                                (_textController.text.isEmpty &&
+                                    _pickedImage == null)
+                            ? Theme.of(context).disabledColor
+                            : Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -395,37 +769,80 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
   }
 
   Widget _buildImagePreview() {
-    // ... (Keep the original _buildImagePreview logic as before)
     return Container(
-      margin: const EdgeInsets.only(bottom: 8.0),
-      padding: const EdgeInsets.all(4.0),
+      margin: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10.0),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(16.0),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Color(0xFF2A2A2A)
+            : Color(0xFFF5F5F5),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade700
+              : Colors.grey.shade300,
+          width: 1.0,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(12.0),
             child: Image.file(
               File(_pickedImage!.path),
-              width: 60,
-              height: 60,
+              width: 70,
+              height: 70,
               fit: BoxFit.cover,
             ),
           ),
-          const SizedBox(width: 8),
-          const Text("Image added"),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: () {
-              setState(() {
-                _pickedImage = null;
-              });
-            },
-            tooltip: 'Remove Image',
-          )
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Image added",
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black87,
+                ),
+              ),
+              Text(
+                "Tap to remove",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[400]
+                      : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                setState(() {
+                  _pickedImage = null;
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(
+                  Icons.close,
+                  size: 20,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[400]
+                      : Colors.grey[600],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -500,15 +917,19 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
   }
 
   Future<void> _sendMessage() async {
-    // ... (Keep the original _sendMessage logic mostly the same)
-    // Make sure the disclaimer logic isn't accidentally removed
-    // from the API call or response handling if you modify it.
+    debugPrint("_sendMessage method called");
+
     final String text = _textController.text.trim();
     final XFile? imageFile = _pickedImage;
 
+    // Guard clause - return early if there's nothing to send
     if (text.isEmpty && imageFile == null) {
+      debugPrint("Nothing to send - returning early");
       return;
     }
+
+    // Ensure keyboard is dismissed - this helps with UI responsiveness
+    FocusScope.of(context).unfocus();
 
     // Check if mounted before setState
     if (!mounted) return;
@@ -524,7 +945,11 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
       _textController.clear();
       _pickedImage = null;
     });
-    _scrollToBottom();
+
+    // Ensure scroll happens after setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scrollToBottom();
+    });
 
     try {
       final List<genai.Part> parts = [];
@@ -571,22 +996,23 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
         });
       } else {
         // Add Gemini response to UI
-        // Optional: You *could* programmatically add a mini-disclaimer
-        // reminder to every bot response here, but it might be overkill
-        // if the initial prompt and app bar are clear.
-        // final responseWithReminder = responseText + "\n\n*(Reminder: Not medical advice. Consult a doctor.)*";
         setState(() {
           _messages.add(ChatMessage(
             sender: MessageSender.model,
-            text: responseText, // or responseWithReminder
+            text: responseText,
             timestamp: DateTime.now(),
           ));
         });
       }
-      _scrollToBottom();
+
+      // Ensure scroll happens after setState
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToBottom();
+      });
     } catch (e) {
       // Check if mounted before showing error / setState
       if (!mounted) return;
+
       _showError('Error sending message: $e');
       setState(() {
         _messages.add(ChatMessage(
@@ -596,7 +1022,11 @@ You can start by telling me how you're feeling, and I'll do my best to help. ðŸ˜
           timestamp: DateTime.now(),
         ));
       });
-      _scrollToBottom();
+
+      // Ensure scroll happens after setState
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToBottom();
+      });
     } finally {
       // Check if mounted before final setState
       if (mounted) {

@@ -141,13 +141,6 @@ class _SignupPageState extends State<SignupPage>
   }
 
   // Validate password requirements
-  bool _validatePassword(String password) {
-    // At least 8 characters, 1 uppercase, 1 number
-    if (password.length < 8) return false;
-    if (!password.contains(RegExp(r'[A-Z]'))) return false;
-    if (!password.contains(RegExp(r'[0-9]'))) return false;
-    return true;
-  }
 
   // Validate email format
   bool _validateEmail(String email) {
@@ -217,7 +210,7 @@ class _SignupPageState extends State<SignupPage>
         },
       );
 
-      return userCredential != null;
+      return true;
     } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {
@@ -283,8 +276,6 @@ class _SignupPageState extends State<SignupPage>
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(), // Dismiss keyboard on tap
       child: Scaffold(

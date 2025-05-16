@@ -175,8 +175,7 @@ class _ProfileState extends State<Profile> {
                       if (lastSignInTime == null ||
                           now.difference(lastSignInTime).inMinutes > 60) {
                         // Close the loading dialog safely
-                        if (loadingDialogContext != null &&
-                            Navigator.canPop(loadingDialogContext!)) {
+                        if (Navigator.canPop(loadingDialogContext!)) {
                           Navigator.of(loadingDialogContext!).pop();
                           loadingDialogContext = null;
                         }

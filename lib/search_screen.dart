@@ -29,18 +29,42 @@ class _SearchState extends State<Search> {
 
   int status = 0;
   String _selectedFilter = 'distance'; // 'distance' or 'price'
+  bool _isLoading = true; // Loading state
 
   late GlobalKey<ScaffoldState> _scaffoldKey;
   @override
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    setProducts();
-    setLocation();
+    // Initialize the app with location and products
+    _initializeWithLocation();
+  }
+
+  // Initialize the app with location first, then fetch products
+  Future<void> _initializeWithLocation() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await setLocation();
+      await setProducts();
+    } catch (e) {
+      print("Error initializing: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Get colors from theme
+    final backgroundColor = Theme.of(context).colorScheme.background;
+    final onBackgroundColor = Theme.of(context).colorScheme.onBackground;
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+
     return RefreshIndicator(
         onRefresh: () async {
           await setProducts();
@@ -48,11 +72,12 @@ class _SearchState extends State<Search> {
         child: Scaffold(
           key: _scaffoldKey,
           drawer: const Navbar(),
+          backgroundColor: backgroundColor,
           body: Stack(children: [
             Container(
-              decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(40.0),
                       bottomRight: Radius.circular(40.0))),
             ),
@@ -144,12 +169,17 @@ class _SearchState extends State<Search> {
                               }),
                           hintText: "Search",
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: Theme.of(context).colorScheme.surface,
                           border: const OutlineInputBorder(
                               borderRadius:
                                   BorderRadius.all(Radius.circular(25.0))),
-                          hintStyle: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w300),
+                          hintStyle: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w300,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.6)),
                         ),
                       ),
                     ),
@@ -158,32 +188,61 @@ class _SearchState extends State<Search> {
             Padding(
               padding: const EdgeInsets.only(top: 235.0, left: 35),
               child: Container(
-                  child: const Text(
+                  child: Text(
                 "Search Results",
                 style: TextStyle(
-                    color: Colors.black,
+                    color: onBackgroundColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 22),
               )),
             ),
-            Padding(
-              padding: const EdgeInsets.only(top: 270.0),
-              child: ListView.builder(
-                  itemCount: status == 0
-                      ? searchedProducts.length
-                      : nearbyProducts.length,
-                  itemBuilder: (context, index) {
-                    if (status == 0) {
-                      return CardView(
-                        productList: searchedProducts[index],
-                      );
-                    } else {
-                      return CardView(
-                        productList: nearbyProducts[index],
-                      );
-                    }
-                  }),
-            )
+            _isLoading
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 270.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(height: 16),
+                          Text("Loading medicines...",
+                              style: TextStyle(
+                                  fontSize: 16, color: onBackgroundColor))
+                        ],
+                      ),
+                    ),
+                  )
+                : searchedProducts.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 270.0),
+                          child: Text(
+                            "No medicines found",
+                            style: TextStyle(
+                                fontSize: 16, color: onBackgroundColor),
+                          ),
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 270.0),
+                        child: ListView.builder(
+                            itemCount: status == 0
+                                ? searchedProducts.length
+                                : nearbyProducts.length,
+                            itemBuilder: (context, index) {
+                              if (status == 0) {
+                                return CardView(
+                                  productList: searchedProducts[index],
+                                );
+                              } else {
+                                return CardView(
+                                  productList: nearbyProducts[index],
+                                );
+                              }
+                            }),
+                      )
           ]),
         ));
   }
@@ -191,13 +250,20 @@ class _SearchState extends State<Search> {
   void _showFilterDialog() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.location_on),
-              title: const Text('Sort by Distance'),
+              leading: Icon(Icons.location_on,
+                  color: _selectedFilter == 'distance'
+                      ? Theme.of(context).colorScheme.primary
+                      : null),
+              title: Text('Sort by Distance'),
               onTap: () {
                 setState(() {
                   _selectedFilter = 'distance';
@@ -206,10 +272,17 @@ class _SearchState extends State<Search> {
                 Navigator.pop(context);
               },
               selected: _selectedFilter == 'distance',
+              selectedTileColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withOpacity(0.2),
             ),
             ListTile(
-              leading: const Icon(Icons.attach_money),
-              title: const Text('Sort by Price'),
+              leading: Icon(Icons.attach_money,
+                  color: _selectedFilter == 'price'
+                      ? Theme.of(context).colorScheme.primary
+                      : null),
+              title: Text('Sort by Price'),
               onTap: () {
                 setState(() {
                   _selectedFilter = 'price';
@@ -218,6 +291,10 @@ class _SearchState extends State<Search> {
                 Navigator.pop(context);
               },
               selected: _selectedFilter == 'price',
+              selectedTileColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withOpacity(0.2),
             ),
           ],
         );
@@ -243,96 +320,113 @@ class _SearchState extends State<Search> {
   }
 
   Future<void> setLocation() async {
-    var position = await Flutter_api().getPosition();
-    var address =
-        await Flutter_api().getAddress(position.latitude, position.longitude);
+    try {
+      var position = await Flutter_api().getPosition();
+      var address =
+          await Flutter_api().getAddress(position.latitude, position.longitude);
 
-    setState(() {
-      fullAddress = address;
-      txt.text = fullAddress;
-      userlat = position.latitude;
-      userlon = position.longitude;
-    });
+      setState(() {
+        fullAddress = address;
+        txt.text = fullAddress;
+        userlat = position.latitude;
+        userlon = position.longitude;
+      });
+    } catch (e) {
+      print("Error getting location: $e");
+      // Handle error gracefully, maybe show a message to user
+    }
   }
 
   Future<void> setProducts() async {
-    // Dummy data for medicines
-    var products = [
-      {
-        "Name": "Panadol",
-        "Description": "Pain reliever and fever reducer",
-        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
-        "StoreName": "Pharmacy A",
-        "Price": "\$5"
-      },
-      {
-        "Name": "Panadol",
-        "Description": "Pain reliever and fever reducer",
-        "StoreLocation": {"latitude": 37.7449, "longitude": -132.4194},
-        "StoreName": "Pharmacy B",
-        "Price": "\$8"
-      },
-      {
-        "Name": "Panadol",
-        "Description": "Pain reliever and fever reducer",
-        "StoreLocation": {"latitude": 37.7249, "longitude": -124.4194},
-        "StoreName": "Pharmacy C",
-        "Price": "\$2"
-      },
-      {
-        "Name": "Aspirin",
-        "Description": "Used to reduce pain, fever, or inflammation",
-        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
-        "StoreName": "Pharmacy B",
-        "Price": "\$3"
-      },
-      {
-        "Name": "Ibuprofen",
-        "Description": "Nonsteroidal anti-inflammatory drug (NSAID)",
-        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
-        "StoreName": "Pharmacy C",
-        "Price": "\$7"
-      },
-      {
-        "Name": "Amoxicillin",
-        "Description": "Antibiotic used to treat bacterial infections",
-        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
-        "StoreName": "Pharmacy D",
-        "Price": "\$10"
-      },
-      {
-        "Name": "Amoxicillin",
-        "Description": "Antibiotic used to treat bacterial infections",
-        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
-        "StoreName": "Pharmacy D",
-        "Price": "\$10"
-      },
-      {
-        "Name": "Cough Syrup",
-        "Description": "Used to relieve cough and cold symptoms",
-        "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
-        "StoreName": "Pharmacy E",
-        "Price": "\$8"
-      },
-    ];
+    try {
+      // Dummy data for medicines
+      var products = [
+        {
+          "Name": "Panadol",
+          "Description": "Pain reliever and fever reducer",
+          "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+          "StoreName": "Pharmacy A",
+          "Price": "\$5"
+        },
+        {
+          "Name": "Panadol",
+          "Description": "Pain reliever and fever reducer",
+          "StoreLocation": {"latitude": 37.7449, "longitude": -132.4194},
+          "StoreName": "Pharmacy B",
+          "Price": "\$8"
+        },
+        {
+          "Name": "Panadol",
+          "Description": "Pain reliever and fever reducer",
+          "StoreLocation": {"latitude": 37.7249, "longitude": -124.4194},
+          "StoreName": "Pharmacy C",
+          "Price": "\$2"
+        },
+        {
+          "Name": "Aspirin",
+          "Description": "Used to reduce pain, fever, or inflammation",
+          "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+          "StoreName": "Pharmacy B",
+          "Price": "\$3"
+        },
+        {
+          "Name": "Ibuprofen",
+          "Description": "Nonsteroidal anti-inflammatory drug (NSAID)",
+          "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+          "StoreName": "Pharmacy C",
+          "Price": "\$7"
+        },
+        {
+          "Name": "Amoxicillin",
+          "Description": "Antibiotic used to treat bacterial infections",
+          "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+          "StoreName": "Pharmacy D",
+          "Price": "\$10"
+        },
+        {
+          "Name": "Amoxicillin",
+          "Description": "Antibiotic used to treat bacterial infections",
+          "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+          "StoreName": "Pharmacy D",
+          "Price": "\$10"
+        },
+        {
+          "Name": "Cough Syrup",
+          "Description": "Used to relieve cough and cold symptoms",
+          "StoreLocation": {"latitude": 37.7749, "longitude": -122.4194},
+          "StoreName": "Pharmacy E",
+          "Price": "\$8"
+        },
+      ];
 
-    var pos = await Flutter_api().getPosition();
-    for (var product in products) {
-      var distance = Geolocator.distanceBetween(
-          pos.latitude,
-          pos.longitude,
-          (product["StoreLocation"] as Map<String, dynamic>)["latitude"],
-          (product["StoreLocation"] as Map<String, dynamic>)["longitude"]);
-      product["Distance"] = (distance / 1000).toStringAsFixed(2); // in km
+      // Get user position for distance calculations
+      var pos = await Flutter_api().getPosition();
+
+      // Calculate distance for each product
+      for (var product in products) {
+        var distance = Geolocator.distanceBetween(
+            pos.latitude,
+            pos.longitude,
+            (product["StoreLocation"] as Map<String, dynamic>)["latitude"],
+            (product["StoreLocation"] as Map<String, dynamic>)["longitude"]);
+        product["Distance"] = (distance / 1000).toStringAsFixed(2); // in km
+      }
+
+      // Sort by distance
+      products.sort((a, b) => double.parse(a["Distance"] as String)
+          .compareTo(double.parse(b["Distance"] as String)));
+
+      // Update state to display the products
+      if (mounted) {
+        setState(() {
+          allProducts = products;
+          searchedProducts = products;
+        });
+      }
+    } catch (e) {
+      print("Error loading products: $e");
+      // Handle error gracefully
     }
-
-    products.sort((a, b) => double.parse(a["Distance"] as String)
-        .compareTo(double.parse(b["Distance"] as String))); // Sort by distance
-
-    setState(() {
-      allProducts = products;
-      searchedProducts = products;
-    });
   }
 
   // Search Query for Products
@@ -370,19 +464,46 @@ class CardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.location_on, color: Colors.blue),
-            Text("${productList["Distance"]} km"),
+            Icon(Icons.location_on, color: theme.colorScheme.primary),
+            Text(
+              "${productList["Distance"]} km",
+              style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.8)),
+            ),
           ],
         ),
-        title: Text(productList["Name"]),
-        subtitle: Text(productList["Description"]),
-        trailing: Text(productList["Price"]),
+        title: Text(
+          productList["Name"],
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        subtitle: Text(
+          productList["Description"],
+          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+        ),
+        trailing: Text(
+          productList["Price"],
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.secondary,
+            fontSize: 16,
+          ),
+        ),
         onTap: () {
           // Handle card tap
         },
