@@ -346,7 +346,7 @@ class _LoginState extends State<Login> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    'Welcome to Search a Holic',
+                    'Welcome to HealSearch',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
