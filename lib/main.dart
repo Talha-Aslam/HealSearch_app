@@ -241,7 +241,7 @@ class MyApp extends StatelessWidget {
     const accentColor = Color(0xFF8A2387);
 
     return MaterialApp(
-      title: 'Search A Holic',
+      title: 'HealSearch',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       theme: ThemeData(
