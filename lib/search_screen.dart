@@ -5,6 +5,34 @@ import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/navbar.dart';
 import 'package:healsearch_app/pharmacy_map_screen.dart';
 
+// Utility class to prevent multiple snackbars from appearing
+class SnackBarDebouncer {
+  static DateTime? _lastSnackBarTime;
+  static const Duration _debounceTime = Duration(seconds: 2);
+
+  // Show a snackbar only if enough time has passed since the last one
+  static void showSnackBar(BuildContext context, String message,
+      {Duration duration = const Duration(seconds: 2)}) {
+    final now = DateTime.now();
+    if (_lastSnackBarTime == null ||
+        now.difference(_lastSnackBarTime!) > _debounceTime) {
+      _lastSnackBarTime = now;
+
+      // Hide any existing snackbars first
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show the new snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: duration,
+        ),
+      );
+    }
+    // If not enough time has passed, do nothing (suppress the snackbar)
+  }
+}
+
 void main() {
   runApp(const MaterialApp(
     home: Search(),
@@ -84,11 +112,10 @@ class _SearchState extends State<Search> {
             _showLocationServiceDialog();
           } else {
             // Just show a snackbar for subsequent attempts
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Please enable location services'),
-                duration: Duration(seconds: 2),
-              ),
+            SnackBarDebouncer.showSnackBar(
+              context,
+              'Please enable location services',
+              duration: const Duration(seconds: 2),
             );
           }
         }
@@ -350,13 +377,10 @@ class _SearchState extends State<Search> {
                                       .isLocationServiceEnabled();
                                   if (!serviceEnabled) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Please enable location services first'),
-                                          duration: Duration(seconds: 2),
-                                        ),
+                                      SnackBarDebouncer.showSnackBar(
+                                        context,
+                                        'Please enable location services first',
+                                        duration: const Duration(seconds: 2),
                                       );
                                     }
                                     return;
@@ -369,13 +393,10 @@ class _SearchState extends State<Search> {
                                       permission ==
                                           LocationPermission.deniedForever) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Location permission is denied. Please update in settings.'),
-                                          duration: Duration(seconds: 2),
-                                        ),
+                                      SnackBarDebouncer.showSnackBar(
+                                        context,
+                                        'Location permission is denied. Please update in settings.',
+                                        duration: const Duration(seconds: 2),
                                       );
                                     }
                                     return;
