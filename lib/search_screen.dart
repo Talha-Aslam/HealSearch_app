@@ -3,7 +3,7 @@ import 'package:geolocator/geolocator.dart';
 
 import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/navbar.dart';
-import 'package:healsearch_app/pharmacy_map_screen.dart';
+import 'package:healsearch_app/pharmacy_map_screen_fixed.dart';
 
 // Utility class to prevent multiple snackbars from appearing
 class SnackBarDebouncer {
