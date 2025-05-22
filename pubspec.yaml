@@ -83,6 +83,7 @@ dependencies:
   google_sign_in: ^5.0.7
   flutter_gemini: ^3.0.0
   google_generative_ai: ^0.4.6
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

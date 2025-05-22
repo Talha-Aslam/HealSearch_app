@@ -195,20 +195,6 @@ class _SignupPageState extends State<SignupPage>
 
     try {
       // Create the user account with error handling
-      final userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-              email: EmailController.text.trim(),
-              password: passController.text.trim())
-          .timeout(
-        Duration(seconds: 15),
-        onTimeout: () {
-          throw FirebaseAuthException(
-            code: 'timeout',
-            message:
-                'Connection timed out. Please check your internet connection.',
-          );
-        },
-      );
 
       return true;
     } on FirebaseAuthException catch (e) {
