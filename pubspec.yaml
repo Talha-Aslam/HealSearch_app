@@ -100,15 +100,10 @@ flutter:
   uses-material-design: true
   assets:
     - Images/
-    - Images/logo1.png
-    - Images/logo.png
     - Images/logo3.png
     - Images/man.png
-    - Images/plants2.png
     - Images/bkg.jpg
-    - Images/favorite.png
     - Images/search.png
     - Images/back.png
-    - Images/products.png
     - Images/user.png
     - Images/box.png

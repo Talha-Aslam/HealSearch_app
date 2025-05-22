@@ -123,10 +123,9 @@ class _ProfileState extends State<Profile> {
                   bool shouldNavigateToLogin = false;
                   bool deletionSuccessful = false;
                   String? errorMessage;
-
                   try {
                     // Show a loading dialog
-                    BuildContext? loadingDialogContext;
+                    // Using the method-level loadingDialogContext
                     showDialog(
                       context: currentContext,
                       barrierDismissible: false,
@@ -297,8 +296,8 @@ class _ProfileState extends State<Profile> {
                   } finally {
                     // Close loading dialog safely if it's still open
                     if (loadingDialogContext != null &&
-                        Navigator.canPop(loadingDialogContext)) {
-                      Navigator.of(loadingDialogContext).pop();
+                        Navigator.canPop(loadingDialogContext!)) {
+                      Navigator.of(loadingDialogContext!).pop();
                     }
 
                     // Show success or error message - but only if we're not navigating away
