@@ -60,7 +60,6 @@ class _ProfileState extends State<Profile> {
           errorMessage = "Error fetching profile data";
           isLoading = false;
         });
-        print("Error fetching profile: $e");
       }
     } else {
       // Use the data from AppData for faster access

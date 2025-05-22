@@ -24,6 +24,8 @@ class FirestoreCollections {
   static const String stores = "stores";
   static const String userLocations = "user_locations";
   static const String searchHistory = "search_history";
+  static const String contactMessages =
+      "contact_messages"; // Added for Contact Us feature
 }
 
 /// Main API class for Firebase operations
@@ -81,6 +83,7 @@ class Flutter_api {
   }
 
   // Check login with proper error handling
+  // ignore: non_constant_identifier_names
   Future<bool> check_login(String email, String password) async {
     try {
       // Check connectivity first
@@ -982,5 +985,52 @@ class Flutter_api {
         );
       }
     }
+  }
+
+  // Submit contact form message
+  Future<String> submitContactMessage({
+    required String name,
+    required String email,
+    required String message,
+    required String category,
+    String? userId,
+  }) async {
+    try {
+      // Generate a ticket number
+      String ticketNumber = _generateTicketNumber();
+
+      // Create the message data
+      Map<String, dynamic> messageData = {
+        'name': name,
+        'email': email,
+        'message': message,
+        'category': category,
+        'ticketNumber': ticketNumber,
+        'userId': userId ?? _auth.currentUser?.uid ?? 'anonymous',
+        'status': 'Open',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Add to Firestore
+      await _firestore
+          .collection(FirestoreCollections.contactMessages)
+          .add(messageData);
+
+      return ticketNumber;
+    } catch (e) {
+      debugPrint("Error submitting contact message: $e");
+      rethrow;
+    }
+  }
+
+  // Generate a random ticket number for contact messages
+  String _generateTicketNumber() {
+    final random = Random();
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    final prefix = chars[random.nextInt(chars.length)] +
+        chars[random.nextInt(chars.length)];
+    final number = random.nextInt(900000) + 100000;
+    return '$prefix-$number';
   }
 }

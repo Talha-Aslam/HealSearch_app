@@ -16,6 +16,7 @@ class _SignupPageState extends State<SignupPage>
     with SingleTickerProviderStateMixin {
   final fnameController = TextEditingController();
   final lnameController = TextEditingController();
+  // ignore: non_constant_identifier_names
   final EmailController = TextEditingController();
   final passController = TextEditingController();
   final pass2controller = TextEditingController();

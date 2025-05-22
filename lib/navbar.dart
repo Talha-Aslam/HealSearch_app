@@ -4,6 +4,7 @@ import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/login_screen.dart';
 import 'package:healsearch_app/profile.dart';
+import 'package:healsearch_app/contact_us_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Navbar extends StatelessWidget {
@@ -109,139 +110,10 @@ class Navbar extends StatelessWidget {
         ListTile(
           leading: Icon(Icons.contact_mail, size: 30, color: iconColor),
           onTap: () {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                final dialogTheme = Theme.of(context);
-                final primaryColor = dialogTheme.colorScheme.primary;
-
-                return AlertDialog(
-                  backgroundColor: dialogTheme.colorScheme.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.0),
-                  ),
-                  title: Center(
-                    child: Text(
-                      'Contact Us',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                        color: primaryColor,
-                      ),
-                    ),
-                  ),
-                  content: Container(
-                    width: double.maxFinite,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: primaryColor.withOpacity(0.1),
-                          ),
-                          child: Icon(
-                            Icons.contact_mail,
-                            size: 60,
-                            color: primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'HealSearch Developers',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: dialogTheme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Divider(
-                            color: dialogTheme.colorScheme.onSurface
-                                .withOpacity(0.2)),
-                        ListTile(
-                          leading: Icon(Icons.email, color: primaryColor),
-                          title: Text(
-                            'Email',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: dialogTheme.colorScheme.onSurface,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'talha@student.uol.edu.pk',
-                            style: TextStyle(
-                              color: dialogTheme.colorScheme.onSurface
-                                  .withOpacity(0.7),
-                            ),
-                          ),
-                          dense: true,
-                        ),
-                        ListTile(
-                          leading: Icon(Icons.phone, color: primaryColor),
-                          title: Text(
-                            'Phone',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: dialogTheme.colorScheme.onSurface,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '+92 123 456 7890',
-                            style: TextStyle(
-                              color: dialogTheme.colorScheme.onSurface
-                                  .withOpacity(0.7),
-                            ),
-                          ),
-                          dense: true,
-                        ),
-                        ListTile(
-                          leading: Icon(Icons.location_on, color: primaryColor),
-                          title: Text(
-                            'Address',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: dialogTheme.colorScheme.onSurface,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'University of Lahore, Pakistan',
-                            style: TextStyle(
-                              color: dialogTheme.colorScheme.onSurface
-                                  .withOpacity(0.7),
-                            ),
-                          ),
-                          dense: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
-                      ),
-                      child: Text(
-                        'Close',
-                        style:
-                            TextStyle(color: dialogTheme.colorScheme.onPrimary),
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                  actionsPadding: const EdgeInsets.fromLTRB(0, 0, 20, 15),
-                  actionsAlignment: MainAxisAlignment.center,
-                );
-              },
-            );
+            Navigator.push(context,
+                MaterialPageRoute(builder: (BuildContext context) {
+              return const ContactUsScreen();
+            }));
           },
           title: Text(
             'Contact Us',

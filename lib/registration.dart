@@ -30,14 +30,10 @@ class UserRegistrationService {
   // Improved network connectivity check with multiple fallbacks
   Future<bool> checkInternetConnectivity() async {
     try {
-      print("Starting connectivity check...");
-
       // Step 1: Check device connectivity status first (fastest)
       final connectivityResult = await Connectivity().checkConnectivity();
-      print("Connectivity result: $connectivityResult");
 
       if (connectivityResult == ConnectivityResult.none) {
-        print("Device reports no connectivity");
         return false;
       }
 
@@ -46,11 +42,9 @@ class UserRegistrationService {
         final result = await InternetAddress.lookup('8.8.8.8')
             .timeout(const Duration(seconds: 3));
         if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-          print("Successfully connected to Google DNS");
           return true;
         }
       } catch (e) {
-        print("Google DNS check failed: $e");
         // Continue to next check
       }
 
@@ -59,11 +53,9 @@ class UserRegistrationService {
         final result = await InternetAddress.lookup('google.com')
             .timeout(const Duration(seconds: 5));
         if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-          print("Successfully connected to google.com");
           return true;
         }
       } catch (e) {
-        print("Google.com check failed: $e");
         // Continue to final check
       }
 

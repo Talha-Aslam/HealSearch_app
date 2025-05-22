@@ -78,8 +78,6 @@ class _SearchState extends State<Search> {
       await setLocation();
       await setProducts();
     } catch (e) {
-      print("Error initializing: $e");
-
       // Handle location-specific errors
       if (e.toString().contains('Location services are disabled')) {
         _showLocationServiceDialog();
@@ -138,7 +136,6 @@ class _SearchState extends State<Search> {
 
       return true; // Location services and permissions are okay
     } catch (e) {
-      print("Error checking location services: $e");
       return false;
     }
   }
@@ -157,7 +154,6 @@ class _SearchState extends State<Search> {
             await setLocation();
             await setProducts();
           } catch (e) {
-            print("Error during refresh: $e");
             // Errors are handled in the respective methods
           } finally {
             setState(() {
@@ -283,14 +279,13 @@ class _SearchState extends State<Search> {
                 )),
             Padding(
               padding: const EdgeInsets.only(top: 235.0, left: 35),
-              child: Container(
-                  child: Text(
+              child: Text(
                 "Search Results",
                 style: TextStyle(
                     color: onBackgroundColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 22),
-              )),
+              ),
             ),
             _isLoading
                 ? Center(
@@ -412,7 +407,6 @@ class _SearchState extends State<Search> {
                                       await setLocation();
                                       await setProducts();
                                     } catch (e) {
-                                      print("Error during retry: $e");
                                       if (mounted) {
                                         setState(() {
                                           status1 = true;
@@ -557,7 +551,6 @@ class _SearchState extends State<Search> {
           await setLocation();
           await setProducts();
         } catch (e) {
-          print("Error in retry initialization: $e");
           // If there's an error, ensure we update the UI state properly
           if (mounted) {
             setState(() {
@@ -680,8 +673,6 @@ class _SearchState extends State<Search> {
         });
       }
     } catch (e) {
-      print("Error getting location: $e");
-
       // Set status1 flag to indicate location error
       if (mounted) {
         setState(() {
@@ -788,7 +779,6 @@ class _SearchState extends State<Search> {
             .compareTo(double.parse(b["Distance"] as String)));
       } catch (e) {
         // If we can't get location, set a default distance and sort by name
-        print("Can't get location for distance calculation: $e");
         for (var product in products) {
           product["Distance"] = "Unknown";
         }
@@ -812,7 +802,6 @@ class _SearchState extends State<Search> {
         });
       }
     } catch (e) {
-      print("Error loading products: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("Error loading medicine data: Please try again")));

@@ -12,14 +12,14 @@ class PharmacyMapScreen extends StatefulWidget {
   final String medicineQuantity;
 
   const PharmacyMapScreen({
-    Key? key,
+    super.key,
     required this.pharmacyName,
     required this.latitude,
     required this.longitude,
     required this.medicineName,
     required this.medicinePrice,
     required this.medicineQuantity,
-  }) : super(key: key);
+  });
 
   @override
   State<PharmacyMapScreen> createState() => _PharmacyMapScreenState();

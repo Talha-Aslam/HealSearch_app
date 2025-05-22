@@ -695,6 +695,7 @@ class _LoginState extends State<Login> {
                             email: resetEmailController.text.trim(),
                           );
                           if (mounted) {
+                            // ignore: use_build_context_synchronously
                             Navigator.pop(context, 'success');
                           }
                         } catch (e) {
