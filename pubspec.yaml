@@ -47,6 +47,7 @@ dependencies:
   email_otp: ^3.0.2
   geolocator: ^13.0.1
   geocoding: ^3.0.0
+  geoflutterfire2: ^2.3.15
   flutter_map: ^7.0.2
   url_launcher: ^6.1.10
   path_provider: ^2.0.14
