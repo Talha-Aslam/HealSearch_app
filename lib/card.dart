@@ -9,18 +9,25 @@ class CardView extends StatelessWidget {
     required this.productList,
   });
   final Map<String, dynamic> productList;
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cardColor = theme.colorScheme.surface;
+    final textColor = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(left: 20, right: 20, top: 10),
       height: 100,
       width: MediaQuery.of(context).size.width * 0.85,
       decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(color: Colors.grey, blurRadius: 5, offset: Offset(0, 3))
+          boxShadow: [
+            BoxShadow(
+                color: isDark ? Colors.black26 : Colors.grey.withOpacity(0.5),
+                blurRadius: 5,
+                offset: Offset(0, 3))
           ]),
       child: Row(
         children: [
@@ -50,8 +57,8 @@ class CardView extends StatelessWidget {
                   width: MediaQuery.of(context).size.width * 0.5,
                   child: Text(
                     "${productList['Name']}",
-                    style: const TextStyle(
-                        color: Colors.black,
+                    style: TextStyle(
+                        color: textColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 20),
                   ),
@@ -61,8 +68,8 @@ class CardView extends StatelessWidget {
                 ),
                 Text(
                   'Rs. ${productList["Price"]}',
-                  style: const TextStyle(
-                      color: Colors.red,
+                  style: TextStyle(
+                      color: theme.colorScheme.secondary,
                       fontWeight: FontWeight.normal,
                       fontSize: 15),
                 ),
@@ -71,7 +78,7 @@ class CardView extends StatelessWidget {
                 ),
                 Text(
                   'In Stock: ${productList["Quantity"]}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.normal,
                       fontSize: 16),
@@ -81,8 +88,8 @@ class CardView extends StatelessWidget {
                 ),
                 Text(
                   '${productList["StoreName"]}',
-                  style: const TextStyle(
-                      color: Colors.black,
+                  style: TextStyle(
+                      color: textColor.withOpacity(0.8),
                       fontWeight: FontWeight.normal,
                       fontSize: 16),
                 ),
@@ -100,7 +107,7 @@ class CardView extends StatelessWidget {
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: theme.colorScheme.primary,
                     shape: const CircleBorder(),
                   ),
                   onPressed: () {
@@ -238,9 +245,9 @@ class CardView extends StatelessWidget {
                       "Edit",
                       style: TextStyle(
                         fontFamily: "Montserrat",
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                         fontWeight: FontWeight.w100,
-                        fontSize: MediaQuery.of(context).size.width / 110,
+                        fontSize: 15,
                       ),
                     ),
                   ),

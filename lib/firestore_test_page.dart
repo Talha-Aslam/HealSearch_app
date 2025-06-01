@@ -5,6 +5,7 @@ class FirestoreTestPage extends StatefulWidget {
   const FirestoreTestPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _FirestoreTestPageState createState() => _FirestoreTestPageState();
 }
 

@@ -19,6 +19,7 @@ class _ProfileState extends State<Profile> {
   String? name;
   String? email;
   String? phoneNumber;
+  String? profileImageUrl;
   bool isLoading = false;
   String? errorMessage;
 
@@ -43,6 +44,9 @@ class _ProfileState extends State<Profile> {
             email = userData['email'];
             // Handle different field names for phone number
             phoneNumber = userData['phoneNumber'] ?? userData['phNo'];
+            profileImageUrl = userData['profileImage'];
+            // Update global appData profile image for navbar
+            appData.profileImage = userData['profileImage'];
             isLoading = false;
           });
         } else {
@@ -56,7 +60,6 @@ class _ProfileState extends State<Profile> {
           errorMessage = "Error fetching profile data";
           isLoading = false;
         });
-        print("Error fetching profile: $e");
       }
     } else {
       // Use the data from AppData for faster access
@@ -64,6 +67,7 @@ class _ProfileState extends State<Profile> {
         name = appData.userName;
         email = appData.Email;
         phoneNumber = appData.phoneNumber;
+        profileImageUrl = null;
         isLoading = false;
       });
     }
@@ -118,10 +122,9 @@ class _ProfileState extends State<Profile> {
                   bool shouldNavigateToLogin = false;
                   bool deletionSuccessful = false;
                   String? errorMessage;
-
                   try {
                     // Show a loading dialog
-                    BuildContext? loadingDialogContext;
+                    // Using the method-level loadingDialogContext
                     showDialog(
                       context: currentContext,
                       barrierDismissible: false,
@@ -170,8 +173,7 @@ class _ProfileState extends State<Profile> {
                       if (lastSignInTime == null ||
                           now.difference(lastSignInTime).inMinutes > 60) {
                         // Close the loading dialog safely
-                        if (loadingDialogContext != null &&
-                            Navigator.canPop(loadingDialogContext!)) {
+                        if (Navigator.canPop(loadingDialogContext!)) {
                           Navigator.of(loadingDialogContext!).pop();
                           loadingDialogContext = null;
                         }
@@ -293,8 +295,8 @@ class _ProfileState extends State<Profile> {
                   } finally {
                     // Close loading dialog safely if it's still open
                     if (loadingDialogContext != null &&
-                        Navigator.canPop(loadingDialogContext)) {
-                      Navigator.of(loadingDialogContext).pop();
+                        Navigator.canPop(loadingDialogContext!)) {
+                      Navigator.of(loadingDialogContext!).pop();
                     }
 
                     // Show success or error message - but only if we're not navigating away
@@ -401,13 +403,16 @@ class _ProfileState extends State<Profile> {
                           ),
                         ),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.only(top: 50.0),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 50.0),
                         child: CircleAvatar(
-                          maxRadius: 50,
-                          minRadius: 50,
+                          radius: 50,
                           backgroundColor: Colors.white,
-                          backgroundImage: AssetImage("images/man.png"),
+                          backgroundImage: (profileImageUrl != null &&
+                                  profileImageUrl!.isNotEmpty)
+                              ? NetworkImage(profileImageUrl!)
+                              : const AssetImage("Images/man.png")
+                                  as ImageProvider,
                         ),
                       ),
                       Padding(
@@ -415,7 +420,7 @@ class _ProfileState extends State<Profile> {
                         child: Text(
                           name ?? 'User',
                           style: const TextStyle(
-                              color: Colors.black,
+                              color: Color.fromARGB(255, 190, 82, 15),
                               fontWeight: FontWeight.bold,
                               fontSize: 26),
                         ),

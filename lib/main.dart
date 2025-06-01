@@ -230,29 +230,92 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
+    // Enhanced color palette for the app
+    const primaryColor = Color(0xFFE94057);
+    const lightBackgroundColor = Color(0xFFF7F7F7);
+    const darkBackgroundColor = Color(0xFF121212);
+    const cardColorLight = Colors.white;
+    const cardColorDark = Color(0xFF1E1E1E);
+    const accentColor = Color(0xFF8A2387);
+
     return MaterialApp(
-      title: 'Search A Holic',
+      title: 'HealSearch',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: primaryColor,
           brightness: Brightness.light,
+          primary: primaryColor,
+          secondary: accentColor,
+          background: lightBackgroundColor,
+          surface: cardColorLight,
+          onBackground: Colors.black87,
+          onSurface: Colors.black87,
+        ),
+        scaffoldBackgroundColor: lightBackgroundColor,
+        cardColor: cardColorLight,
+        cardTheme: const CardTheme(
+          color: cardColorLight,
+          elevation: 2,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
         ),
         useMaterial3: true,
         // Improve rendering performance
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        // Prevent theme flash during startup
+        appBarTheme: const AppBarTheme(
+          backgroundColor: cardColorLight,
+          foregroundColor: primaryColor,
+          elevation: 0,
+        ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: cardColorLight,
+          scrimColor: Colors.black54,
+        ),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: primaryColor,
           brightness: Brightness.dark,
+          primary: primaryColor,
+          secondary: accentColor,
+          background: darkBackgroundColor,
+          surface: cardColorDark,
+          onBackground: Colors.white,
+          onSurface: Colors.white,
+        ),
+        scaffoldBackgroundColor: darkBackgroundColor,
+        cardColor: cardColorDark,
+        cardTheme: const CardTheme(
+          color: cardColorDark,
+          elevation: 2,
+          shadowColor: Colors.black54,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
         ),
         useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        // Prevent theme flash during startup in dark mode
+        appBarTheme: const AppBarTheme(
+          backgroundColor: cardColorDark,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: cardColorDark,
+          scrimColor: Colors.black54,
+        ),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
       ),
       home: const Splash(),
     );

@@ -6,259 +6,164 @@ import 'package:healsearch_app/login_screen.dart';
 import 'package:healsearch_app/profile.dart';
 import 'package:healsearch_app/medicine_search_screen.dart';
 import 'package:healsearch_app/setup_test_screen.dart';
+import 'package:healsearch_app/contact_us_screen_new.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Navbar extends StatelessWidget {
   const Navbar({super.key});
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textColor = theme.colorScheme.onSurface.withOpacity(0.8);
+    final iconColor = theme.colorScheme.primary;
+
     return Drawer(
         child: ListView(
       padding: EdgeInsets.zero,
       children: [
         UserAccountsDrawerHeader(
-          accountName: const Text(
+          accountName: Text(
             'Logged In as:',
             style: TextStyle(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onPrimary,
                 fontWeight: FontWeight.normal,
                 fontSize: 16),
           ),
           accountEmail: Text(
             appData.Email,
-            style: const TextStyle(
-                color: Colors.white,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
                 fontWeight: FontWeight.normal,
                 fontSize: 18),
           ),
-          currentAccountPicture: const CircleAvatar(
-            maxRadius: 30,
-            minRadius: 30,
-            backgroundImage: AssetImage("images/man.png"),
-          ),
-          decoration: const BoxDecoration(
-              color: Colors.blue,
+          currentAccountPicture:
+              (appData.profileImage != null && appData.profileImage!.isNotEmpty)
+                  ? CircleAvatar(
+                      maxRadius: 30,
+                      minRadius: 30,
+                      backgroundColor: Colors.white,
+                      backgroundImage: NetworkImage(
+                        appData.profileImage!,
+                      ),
+                    )
+                  : const CircleAvatar(
+                      maxRadius: 30,
+                      minRadius: 30,
+                      backgroundColor: Colors.white,
+                      backgroundImage: AssetImage("Images/man.png"),
+                    ),
+          decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
               image: DecorationImage(
-                image: AssetImage("images/bkg.jpg"),
+                image: AssetImage("Images/bkg.jpg"),
                 fit: BoxFit.cover,
+                colorFilter: Theme.of(context).brightness == Brightness.dark
+                    ? ColorFilter.mode(
+                        Colors.black.withOpacity(0.5), BlendMode.darken)
+                    : null,
               )),
         ),
         ListTile(
-          leading: const Icon(
+          leading: Icon(
             Icons.search,
             size: 30,
+            color: iconColor,
           ),
-          title: const Text(
+          title: Text(
             'Search',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
           onTap: () {
             // pop closes the drawer
             Navigator.pop(context);
           },
-          trailing: const Icon(Icons.arrow_forward, size: 25),
+          trailing: Icon(Icons.arrow_forward, size: 25, color: iconColor),
           // ignore: avoid_returning_null_for_void
         ),
         ListTile(
-          leading: const Icon(Icons.assessment_rounded, size: 30),
+          leading: Icon(Icons.assessment_rounded, size: 30, color: iconColor),
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return ChatScreen();
             }));
           },
-          title: const Text(
+          title: Text(
             'AI ChatBot',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         ListTile(
-          leading: const Icon(Icons.local_pharmacy, size: 30),
+          leading: Icon(Icons.local_pharmacy, size: 30, color: iconColor),
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return const MedicineSearchScreen();
             }));
           },
-          title: const Text(
+          title: Text(
             'Medicine Search',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         ListTile(
-          leading: const Icon(Icons.build, size: 30),
+          leading: Icon(Icons.build, size: 30, color: iconColor),
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return const SetupTestScreen();
             }));
           },
-          title: const Text(
+          title: Text(
             'Setup & Test',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         ListTile(
-          leading: const Icon(Icons.person, size: 30),
+          leading: Icon(Icons.person, size: 30, color: iconColor),
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return const Profile();
             }));
           },
-          title: const Text(
+          title: Text(
             'Profile',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         ListTile(
-          leading: const Icon(Icons.login, size: 30),
+          leading: Icon(Icons.contact_mail, size: 30, color: iconColor),
           onTap: () {
             Navigator.push(context,
                 MaterialPageRoute(builder: (BuildContext context) {
-              return const Login();
+              return const ContactUsScreen();
             }));
-          },
-          title: const Text(
-            'Login',
-            style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.contact_mail, size: 30),
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.0),
-                  ),
-                  title: const Center(
-                    child: Text(
-                      'Contact Us',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                  content: Container(
-                    width: double.maxFinite,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.blue.withOpacity(0.1),
-                          ),
-                          child: const Icon(
-                            Icons.contact_mail,
-                            size: 60,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'HealSearch Developers',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Divider(),
-                        const ListTile(
-                          leading: Icon(Icons.email, color: Colors.blue),
-                          title: Text('Email'),
-                          subtitle: Text('talha@student.uol.edu.pk'),
-                          dense: true,
-                        ),
-                        const ListTile(
-                          leading: Icon(Icons.phone, color: Colors.blue),
-                          title: Text('Phone'),
-                          subtitle: Text('+92 123 456 7890'),
-                          dense: true,
-                        ),
-                        const ListTile(
-                          leading: Icon(Icons.location_on, color: Colors.blue),
-                          title: Text('Address'),
-                          subtitle: Text('University of Lahore, Pakistan'),
-                          dense: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
-                      ),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                  actionsPadding: const EdgeInsets.fromLTRB(0, 0, 20, 15),
-                  actionsAlignment: MainAxisAlignment.center,
-                );
-              },
-            );
           },
           title: Text(
             'Contact Us',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
         const Divider(),
         ListTile(
-          leading: const Icon(Icons.exit_to_app, size: 30),
+          leading: Icon(Icons.exit_to_app, size: 30, color: iconColor),
           onTap: () {
             Navigator.pushAndRemoveUntil(context,
                 MaterialPageRoute(builder: (BuildContext context) {
               return const Login();
             }), (Route<dynamic> route) => false);
           },
-          title: const Text(
+          title: Text(
             'Logout',
             style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.normal,
-                fontSize: 22),
+                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
         ),
       ],

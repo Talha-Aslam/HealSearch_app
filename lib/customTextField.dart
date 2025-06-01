@@ -38,39 +38,53 @@ class CustomTextField2 extends StatelessWidget {
         keyboardType: inputType,
         onChanged: onChanged,
         textAlign: TextAlign.start,
-        style: const TextStyle(
-          color: Colors.black,
+        style: TextStyle(
+          color: Theme.of(context).textTheme.bodyLarge?.color,
           fontSize: 16,
         ),
         decoration: InputDecoration(
-          prefixIcon: Icon(prefixIcon),
+          prefixIcon:
+              Icon(prefixIcon, color: Theme.of(context).iconTheme.color),
           isDense: true,
           labelText: name,
           counterText: "",
           labelStyle: TextStyle(
-            color: errorText != null ? Colors.red : Colors.grey,
+            color: errorText != null
+                ? Theme.of(context).colorScheme.error
+                : Theme.of(context).hintColor,
           ),
           errorText: errorText,
           errorMaxLines: 2,
           border: OutlineInputBorder(
-            borderSide: BorderSide(color: errorText != null ? Colors.red : Colors.grey),
+            borderSide: BorderSide(
+                color: errorText != null
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).dividerColor),
             borderRadius: const BorderRadius.all(Radius.circular(10)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: errorText != null ? Colors.red : Colors.blue, width: 1.5),
+            borderSide: BorderSide(
+                color: errorText != null
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.primary,
+                width: 1.5),
             borderRadius: const BorderRadius.all(Radius.circular(10)),
           ),
           enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: errorText != null ? Colors.red : Colors.grey),
+            borderSide: BorderSide(
+                color: errorText != null
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).dividerColor),
             borderRadius: const BorderRadius.all(Radius.circular(10)),
           ),
-          errorBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.red),
-            borderRadius: BorderRadius.all(Radius.circular(10)),
+          errorBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Theme.of(context).colorScheme.error),
+            borderRadius: const BorderRadius.all(Radius.circular(10)),
           ),
-          focusedErrorBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.red, width: 1.5),
-            borderRadius: BorderRadius.all(Radius.circular(10)),
+          focusedErrorBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.error, width: 1.5),
+            borderRadius: const BorderRadius.all(Radius.circular(10)),
           ),
         ),
       ),
