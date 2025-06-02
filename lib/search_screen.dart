@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/navbar.dart';
 import 'package:healsearch_app/pharmacy_map_screen_fixed.dart';
+import 'package:healsearch_app/services/pharmacy_search_service.dart';
 
 // Utility class to prevent multiple snackbars from appearing
 class SnackBarDebouncer {
@@ -52,6 +54,62 @@ class _SearchState extends State<Search> {
   List allProducts = [];
   List nearbyProducts = [];
   List searchedProducts = [];
+  Timer? _searchTimer;
+
+  // Simple dummy data as fallback when no Firestore data is available
+  List<Map<String, dynamic>> _getDummyData() {
+    final defaultLat = 31.5204; // Lahore coordinates as default
+    final defaultLon = 74.3587;
+    
+    return [
+      {
+        "Name": "Paracetamol 500mg",
+        "Category": "Pain Relief",
+        "Description": "Pain reliever and fever reducer",
+        "Price": "Rs. 25.50",
+        "Quantity": 150,
+        "StoreName": "HealthCare Pharmacy",
+        "StoreLocation": {
+          "latitude": defaultLat,
+          "longitude": defaultLon,
+        },
+        "Distance": "0.5",
+        "Expire": "2025-12-31",
+        "id": "dummy_1",
+      },
+      {
+        "Name": "Aspirin 81mg",
+        "Category": "Cardiovascular",
+        "Description": "Low-dose aspirin for heart health",
+        "Price": "Rs. 35.25",
+        "Quantity": 100,
+        "StoreName": "City Pharmacy",
+        "StoreLocation": {
+          "latitude": defaultLat + 0.01,
+          "longitude": defaultLon + 0.01,
+        },
+        "Distance": "1.2",
+        "Expire": "2026-06-30",
+        "id": "dummy_2",
+      },
+      {
+        "Name": "Ibuprofen 400mg",
+        "Category": "Pain Relief",
+        "Description": "Anti-inflammatory pain reliever",
+        "Price": "Rs. 45.75",
+        "Quantity": 75,
+        "StoreName": "MediCare Store",
+        "StoreLocation": {
+          "latitude": defaultLat - 0.01,
+          "longitude": defaultLon - 0.01,
+        },
+        "Distance": "2.1",
+        "Expire": "2025-08-15",
+        "id": "dummy_3",
+      },
+    ];
+  }
+
   late double userlat;
   late double userlon;
   bool status1 = false;
@@ -235,22 +293,69 @@ class _SearchState extends State<Search> {
                         controller: _searchQuery,
                         onSubmitted: (value) {},
                         onChanged: (value) {
-                          // Filtering the Products
-                          setState(() {
-                            if (value == "" && status == 0) {
-                              searchedProducts = allProducts;
-                              _applyFilter();
+                          // Cancel previous search timer if it exists
+                          _searchTimer?.cancel();
+                          
+                          // Real-time search using Firestore with debouncing
+                          if (status == 0) {
+                            if (value.trim().isEmpty) {
+                              // If search is empty, show all products immediately
+                              setState(() {
+                                searchedProducts = allProducts;
+                                _applyFilter();
+                              });
+                            } else {
+                              // Debounce the search to avoid too many API calls
+                              _searchTimer = Timer(const Duration(milliseconds: 500), () async {
+                                setState(() {
+                                  _isLoading = true;
+                                });
+                                
+                                try {
+                                  // Search for medicines with the query
+                                  var position = await Flutter_api().getPosition();
+                                  var filteredProducts = await PharmacySearchService.searchNearbyMedicines(
+                                    userPosition: position,
+                                    searchQuery: value.trim(),
+                                  );
+                                  
+                                  // If no results from Firestore, filter dummy data locally
+                                  if (filteredProducts.isEmpty) {
+                                    final dummyData = _getDummyData();
+                                    filteredProducts = dummyData
+                                        .where((element) => element["Name"]
+                                            .toString()
+                                            .toLowerCase()
+                                            .contains(value.toLowerCase()))
+                                        .toList();
+                                  }
+                                  
+                                  setState(() {
+                                    searchedProducts = filteredProducts;
+                                    _applyFilter();
+                                    _isLoading = false;
+                                  });
+                                } catch (e) {
+                                  debugPrint('Error during search: $e');
+                                  
+                                  // Fall back to local filtering of dummy data
+                                  final dummyData = _getDummyData();
+                                  final filteredDummyData = dummyData
+                                      .where((element) => element["Name"]
+                                          .toString()
+                                          .toLowerCase()
+                                          .contains(value.toLowerCase()))
+                                      .toList();
+                                  
+                                  setState(() {
+                                    searchedProducts = filteredDummyData;
+                                    _applyFilter();
+                                    _isLoading = false;
+                                  });
+                                }
+                              });
                             }
-                            if (value != "" && status == 0) {
-                              searchedProducts = allProducts
-                                  .where((element) => element["Name"]
-                                      .toString()
-                                      .toLowerCase()
-                                      .contains(value.toLowerCase()))
-                                  .toList();
-                              _applyFilter();
-                            }
-                          });
+                          }
                         },
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search),
@@ -650,6 +755,14 @@ class _SearchState extends State<Search> {
     }
   }
 
+  @override
+  void dispose() {
+    _searchTimer?.cancel();
+    _searchQuery.dispose();
+    txt.dispose();
+    super.dispose();
+  }
+
   Future<void> setLocation() async {
     try {
       // Reset status1 flag
@@ -692,109 +805,28 @@ class _SearchState extends State<Search> {
     }
 
     try {
-      // Dummy data for medicines
-      var products = [
-        {
-          "Name": "Panadol",
-          "Description": "Pain reliever and fever reducer",
-          "StoreLocation": {"latitude": 31.2485, "longitude": 74.2153},
-          "StoreName": "Raiwind Pharmacy",
-          "Price": "Rs. 20",
-          "Quantity": 45
-        },
-        {
-          "Name": "Panadol",
-          "Description": "Pain reliever and fever reducer",
-          "StoreLocation": {"latitude": 31.2583, "longitude": 74.2245},
-          "StoreName": "DHA Pharmacy",
-          "Price": "Rs. 30",
-          "Quantity": 30
-        },
-        {
-          "Name": "Panadol",
-          "Description": "Pain reliever and fever reducer",
-          "StoreLocation": {"latitude": 31.2320, "longitude": 74.1980},
-          "StoreName": "Johar Town Pharmacy",
-          "Price": "Rs. 15",
-          "Quantity": 20
-        },
-        {
-          "Name": "Aspirin",
-          "Description": "Used to reduce pain, fever, or inflammation",
-          "StoreLocation": {"latitude": 31.2610, "longitude": 74.2050},
-          "StoreName": "Model Town Pharmacy",
-          "Price": "Rs. 30",
-          "Quantity": 60
-        },
-        {
-          "Name": "Ibuprofen",
-          "Description": "Nonsteroidal anti-inflammatory drug (NSAID)",
-          "StoreLocation": {"latitude": 31.2430, "longitude": 74.2280},
-          "StoreName": "Iqbal Town Pharmacy",
-          "Price": "Rs. 70",
-          "Quantity": 25
-        },
-        {
-          "Name": "Amoxicillin",
-          "Description": "Antibiotic used to treat bacterial infections",
-          "StoreLocation": {"latitude": 31.2390, "longitude": 74.2120},
-          "StoreName": "Gulberg Pharmacy",
-          "Price": "Rs. 100",
-          "Quantity": 15
-        },
-        {
-          "Name": "Amoxicillin",
-          "Description": "Antibiotic used to treat bacterial infections",
-          "StoreLocation": {"latitude": 31.2520, "longitude": 74.2350},
-          "StoreName": "Cantt Pharmacy",
-          "Price": "Rs. 120",
-          "Quantity": 15
-        },
-        {
-          "Name": "Cough Syrup",
-          "Description": "Used to relieve cough and cold symptoms",
-          "StoreLocation": {"latitude": 31.2550, "longitude": 74.1950},
-          "StoreName": "Bahria Town Pharmacy",
-          "Price": "Rs. 80",
-          "Quantity": 40
-        },
-      ];
-
-      // Try to get user position for distance calculations
-      try {
-        var pos = await Flutter_api().getPosition();
-
-        // Calculate distance for each product
-        for (var product in products) {
-          var distance = Geolocator.distanceBetween(
-              pos.latitude,
-              pos.longitude,
-              (product["StoreLocation"] as Map<String, dynamic>)["latitude"],
-              (product["StoreLocation"] as Map<String, dynamic>)["longitude"]);
-          product["Distance"] = (distance / 1000).toStringAsFixed(2); // in km
-        }
-
-        // Sort by distance
-        products.sort((a, b) => double.parse(a["Distance"] as String)
-            .compareTo(double.parse(b["Distance"] as String)));
-      } catch (e) {
-        // If we can't get location, set a default distance and sort by name
-        for (var product in products) {
-          product["Distance"] = "Unknown";
-        }
-        // Sort by pharmacy name instead
-        products.sort((a, b) =>
-            (a["StoreName"] as String).compareTo(b["StoreName"] as String));
-
-        // Set the status1 flag for location error
-        if (mounted) {
-          setState(() {
-            status1 = true;
-          });
-        }
+      // Get user position
+      var position = await Flutter_api().getPosition();
+      
+      debugPrint('User position: ${position.latitude}, ${position.longitude}');
+      
+      // Search for nearby medicines using Firestore
+      var products = await PharmacySearchService.searchNearbyMedicines(
+        userPosition: position,
+        searchQuery: null, // Get all medicines initially
+      );
+      
+      debugPrint('Found ${products.length} medicines from Firestore');
+      
+      // If no products found, show a message but don't throw an error
+      if (products.isEmpty) {
+        debugPrint('No medicines found in nearby pharmacies');
+        // Fall back to dummy data if no real data is found
+        products = _getDummyData(); 
+        debugPrint('Using dummy data as fallback: ${products.length} items');
       }
 
-      // Update state to display the products regardless of location availability
+      // Update state to display the products
       if (mounted) {
         setState(() {
           allProducts = products;
@@ -802,9 +834,19 @@ class _SearchState extends State<Search> {
         });
       }
     } catch (e) {
+      debugPrint('Error loading medicine data: $e');
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("Error loading medicine data: Please try again")));
+      }
+      
+      // Fall back to dummy data on error
+      if (mounted) {
+        setState(() {
+          allProducts = _getDummyData();
+          searchedProducts = _getDummyData();
+        });
       }
     }
   }
