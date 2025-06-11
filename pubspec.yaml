@@ -74,14 +74,13 @@ dependencies:
   url_launcher: ^6.1.10
   path_provider: ^2.0.14
   image_picker: ^1.1.2
-  
-  # Miscellaneous utilities
+    # Miscellaneous utilities
   encrypt: ^5.0.1
   uuid: ^4.3.3
   dash_chat_2: ^0.0.21
   
   # AI features
-  google_sign_in: ^5.0.7
+  google_sign_in: ^6.1.5
   flutter_gemini: ^3.0.0
   google_generative_ai: ^0.4.6
   latlong2: ^0.9.1

@@ -7,6 +7,50 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:269639114847:android:a3d587be11d55106397bea",
+        "android_client_info": {
+          "package_name": "com.example.desktop_search_a_holic"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "269639114847-5e6nkf5el8rvke4238oiig8knjakjgol.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.desktop_search_a_holic",
+            "certificate_hash": "7dfcf23fa95c34ccb71b237283dd6463d8b444bd"
+          }
+        },
+        {
+          "client_id": "269639114847-m4paohbm1e40ghqnva4jb6gc6e43dfa5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDulVR9UD11zhJ2gUuyPYe42Srpd4X21G8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "269639114847-7qh1fdr4lmsn4eh3njflps6q62qaj179.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "269639114847-f2gotn92jb791cej1s4p9cgi92nh37ur.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flutterApplication1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:269639114847:android:81b8737f0191ae6f397bea",
         "android_client_info": {
           "package_name": "com.example.healsearch_app"
@@ -14,15 +58,7 @@
       },
       "oauth_client": [
         {
-          "client_id": "269639114847-557tekrq9e1bqkct9clhlqibvjqhmuvk.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.healsearch_app",
-            "certificate_hash": "7dfcf23fa95c34ccb71b237283dd6463d8b444bd"
-          }
-        },
-        {
-          "client_id": "269639114847-7qh1fdr4lmsn4eh3njflps6q62qaj179.apps.googleusercontent.com",
+          "client_id": "269639114847-m4paohbm1e40ghqnva4jb6gc6e43dfa5.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
