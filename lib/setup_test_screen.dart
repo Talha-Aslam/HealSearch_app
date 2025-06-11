@@ -217,12 +217,11 @@ class _SetupTestScreenState extends State<SetupTestScreen> {
           _statusMessage += '   Stock: ${result.stockQuantity} ${result.unit}\n';
           _statusMessage += '   Distance: ${result.formattedDistance}\n';
         }
-        
-        if (results.isEmpty) {
+          if (results.isEmpty) {
           _statusMessage += 'No results found. Make sure:\n';
           _statusMessage += '1. Sample data is set up\n';
           _statusMessage += '2. Location permission is granted\n';
-          _statusMessage += '3. You are within 5km of sample pharmacy locations\n';
+          _statusMessage += '3. Sample pharmacy locations exist in database\n';
         }
       });
     } catch (e) {

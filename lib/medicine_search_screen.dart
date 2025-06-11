@@ -98,11 +98,9 @@ class _MedicineSearchScreenState extends State<MedicineSearchScreen> {
       setState(() {
         _searchResults = results;
         _isLoading = false;
-      });
-
-      if (results.isEmpty) {
+      });      if (results.isEmpty) {
         setState(() {
-          _errorMessage = 'No pharmacies found with "$medicineName" in stock within 5km.';
+          _errorMessage = 'No pharmacies found with "$medicineName" in stock.';
         });
       }
     } catch (e) {

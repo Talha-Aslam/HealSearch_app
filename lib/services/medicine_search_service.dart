@@ -11,13 +11,12 @@ import 'location_service.dart';
 class MedicineSearchService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final GeoFlutterFire _geo = GeoFlutterFire();
-  
-  // Collection references
+    // Collection references
   static const String _medicineInventoryCollection = 'medicine_inventory';
   static const String _pharmaciesCollection = 'pharmacies';
   
-  // Search radius in kilometers
-  static const double _searchRadiusKm = 5.0;
+  // Search radius in kilometers (removed limit - search all available pharmacies)
+  static const double _searchRadiusKm = 1000.0; // Very large radius to include all pharmacies
 
   /// Search for medicines near the user's location
   static Future<List<MedicineSearchResult>> searchMedicinesNearby({
@@ -143,9 +142,7 @@ class MedicineSearchService {
             debugPrint('Pharmacy not found: ${inventory.pharmacyId}');
             continue;
           }
-        }
-
-        // Calculate distance
+        }        // Calculate distance
         final distance = LocationService.calculateDistance(
           startLatitude: userPosition.latitude,
           startLongitude: userPosition.longitude,
@@ -153,14 +150,12 @@ class MedicineSearchService {
           endLongitude: pharmacy.location.longitude,
         );
 
-        // Only include if within our search radius
-        if (distance <= _searchRadiusKm) {
-          searchResults.add(MedicineSearchResult(
-            pharmacy: pharmacy,
-            medicine: inventory,
-            distance: distance,
-          ));
-        }
+        // Include all pharmacies regardless of distance
+        searchResults.add(MedicineSearchResult(
+          pharmacy: pharmacy,
+          medicine: inventory,
+          distance: distance,
+        ));
 
       } catch (e) {
         debugPrint('Error building search result for inventory ${inventory.id}: $e');

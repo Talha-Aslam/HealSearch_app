@@ -5,11 +5,7 @@ import '../Models/pharmacy.dart';
 import '../Models/medicine_inventory.dart';
 import '../firebase_database.dart';
 
-class PharmacySearchService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
-  // Search radius in kilometers
-  static const double _searchRadiusKm = 50.0; // Increased radius for better results
+class PharmacySearchService {  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   /// Search for nearby pharmacies and their medicine inventory
   static Future<List<Map<String, dynamic>>> searchNearbyMedicines({
@@ -55,8 +51,7 @@ class PharmacySearchService {
       for (final doc in pharmaciesSnapshot.docs) {
         try {
           final pharmacy = Pharmacy.fromFirestore(doc);
-          
-          // Calculate distance
+            // Calculate distance
           final distance = Geolocator.distanceBetween(
             userPosition.latitude,
             userPosition.longitude,
@@ -64,11 +59,9 @@ class PharmacySearchService {
             pharmacy.location.longitude,
           ) / 1000; // Convert to kilometers
           
-          // Include if within search radius
-          if (distance <= _searchRadiusKm) {
-            nearbyPharmacies.add(pharmacy);
-            debugPrint('Added pharmacy: ${pharmacy.name} at ${distance.toStringAsFixed(2)}km');
-          }
+          // Include all pharmacies regardless of distance
+          nearbyPharmacies.add(pharmacy);
+          debugPrint('Added pharmacy: ${pharmacy.name} at ${distance.toStringAsFixed(2)}km');
         } catch (e) {
           debugPrint('Error parsing pharmacy document ${doc.id}: $e');
         }
