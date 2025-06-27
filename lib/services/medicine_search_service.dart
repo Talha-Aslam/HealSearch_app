@@ -234,7 +234,7 @@ class MedicineSearchService {
       final query = await _firestore
           .collection(_medicineInventoryCollection)
           .where('medicine_name', isGreaterThanOrEqualTo: partialName)
-          .where('medicine_name', isLessThan: partialName + 'z')
+          .where('medicine_name', isLessThan: '${partialName}z')
           .where('quantity', isGreaterThan: 0)
           .limit(limit)
           .get();
