@@ -3,7 +3,7 @@ import 'firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ContactUsScreen extends StatefulWidget {
-  const ContactUsScreen({Key? key}) : super(key: key);
+  const ContactUsScreen({super.key});
 
   @override
   State<ContactUsScreen> createState() => _ContactUsScreenState();
@@ -83,12 +83,14 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           _isSubmitting = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error submitting your message: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error submitting your message: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
