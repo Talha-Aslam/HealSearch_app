@@ -1,231 +1,162 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
-import '../Models/pharmacy.dart';
-import '../Models/medicine_inventory.dart';
 import '../firebase_database.dart';
 
-class PharmacySearchService {  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class PharmacySearchService {
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  /// Search for nearby pharmacies and their medicine inventory
+  /// Search for medicines from the products collection
   static Future<List<Map<String, dynamic>>> searchNearbyMedicines({
     required Position userPosition,
     String? searchQuery,
   }) async {
     try {
-      debugPrint('Starting pharmacy search at: ${userPosition.latitude}, ${userPosition.longitude}');
+      debugPrint('🔍 Starting medicine search from products collection');
+      debugPrint('🔍 Search query: ${searchQuery ?? "null (getting all products)"}');
       
-      // Step 1: Get all pharmacies from the 'pharmacies' collection
-      final pharmacyResults = await _getNearbyPharmacies(userPosition);
-      debugPrint('Found ${pharmacyResults.length} nearby pharmacies');
+      // Get all products from the 'products' collection
+      Query query = _firestore.collection('products');
       
-      if (pharmacyResults.isEmpty) {
+      final productsSnapshot = await query.get();
+      debugPrint('🔍 Found ${productsSnapshot.docs.length} total products in database');
+      
+      if (productsSnapshot.docs.isEmpty) {
+        debugPrint('⚠️ No products found in database - this might be the issue');
         return [];
       }
       
-      // Step 2: Get medicine inventory for these pharmacies
-      final medicineResults = await _getMedicineInventoryForPharmacies(
-        pharmacyResults, 
-        searchQuery
-      );
-      debugPrint('Found ${medicineResults.length} medicine results');
+      final products = <Map<String, dynamic>>[];
       
-      // Step 3: Transform to match the current UI format
-      final formattedResults = _formatResultsForUI(medicineResults, userPosition);
-      debugPrint('Formatted ${formattedResults.length} results for UI');
-      
-      return formattedResults;
-      
-    } catch (e) {
-      debugPrint('Error in pharmacy search: $e');
-      rethrow;
-    }
-  }
-  
-  /// Get nearby pharmacies within search radius
-  static Future<List<Pharmacy>> _getNearbyPharmacies(Position userPosition) async {
-    try {
-      final pharmaciesSnapshot = await _firestore.collection('pharmacies').get();
-      final nearbyPharmacies = <Pharmacy>[];
-      
-      for (final doc in pharmaciesSnapshot.docs) {
+      for (final doc in productsSnapshot.docs) {
         try {
-          final pharmacy = Pharmacy.fromFirestore(doc);
-            // Calculate distance
-          final distance = Geolocator.distanceBetween(
-            userPosition.latitude,
-            userPosition.longitude,
-            pharmacy.location.latitude,
-            pharmacy.location.longitude,
-          ) / 1000; // Convert to kilometers
+          final data = doc.data() as Map<String, dynamic>;
+          debugPrint('🔍 Processing product: ${data['name']} (ID: ${doc.id})');
           
-          // Include all pharmacies regardless of distance
-          nearbyPharmacies.add(pharmacy);
-          debugPrint('Added pharmacy: ${pharmacy.name} at ${distance.toStringAsFixed(2)}km');
-        } catch (e) {
-          debugPrint('Error parsing pharmacy document ${doc.id}: $e');
-        }
-      }
-      
-      return nearbyPharmacies;
-    } catch (e) {
-      debugPrint('Error querying nearby pharmacies: $e');
-      rethrow;
-    }
-  }
-  
-  /// Get medicine inventory for specific pharmacies
-  static Future<List<Map<String, dynamic>>> _getMedicineInventoryForPharmacies(
-    List<Pharmacy> pharmacies, 
-    String? searchQuery
-  ) async {
-    try {
-      final results = <Map<String, dynamic>>[];
-      
-      for (final pharmacy in pharmacies) {
-        // Query medicine inventory for this pharmacy
-        Query query = _firestore
-            .collection('medicine_inventory')
-            .where('pharmacyId', isEqualTo: pharmacy.id);
-        
-        final inventorySnapshot = await query.get();
-        
-        for (final doc in inventorySnapshot.docs) {
-          try {
-            final inventory = MedicineInventory.fromFirestore(doc);
-            
-            // Filter by search query if provided
-            if (searchQuery != null && searchQuery.isNotEmpty) {
-              if (!inventory.medicineName.toLowerCase().contains(searchQuery.toLowerCase())) {
-                continue; // Skip if doesn't match search query
-              }
+          // Filter by search query if provided (client-side filtering)
+          if (searchQuery != null && searchQuery.isNotEmpty) {
+            final productName = data['name']?.toString().toLowerCase() ?? '';
+            if (!productName.contains(searchQuery.toLowerCase())) {
+              debugPrint('  ❌ Skipped due to search filter: $productName');
+              continue; // Skip if doesn't match search query
             }
-            
-            // Only include if in stock and not expired
-            if (inventory.isInStock && !inventory.isExpired) {
-              results.add({
-                'pharmacy': pharmacy,
-                'medicine': inventory,
-              });
-              debugPrint('Added medicine: ${inventory.medicineName} from ${pharmacy.name}');
-            }
-          } catch (e) {
-            debugPrint('Error parsing medicine inventory document ${doc.id}: $e');
           }
+          
+          // Check if product is not expired
+          final expiryDate = data['expiry']?.toString() ?? '';
+          if (_isProductExpired(expiryDate)) {
+            debugPrint('  ❌ Skipped expired product: $expiryDate');
+            continue; // Skip expired products
+          }
+          
+          // Check if product has sufficient quantity
+          final quantity = data['quantity'] ?? 0;
+          if (quantity <= 0) {
+            debugPrint('  ❌ Skipped out of stock product: quantity=$quantity');
+            continue; // Skip out of stock products
+          }
+          
+          // Format product for UI
+          final formattedProduct = _formatProductForUI(data, doc.id, userPosition);
+          products.add(formattedProduct);
+          debugPrint('  ✅ Added product: ${formattedProduct['Name']}');
+          
+        } catch (e) {
+          debugPrint('❌ Error parsing product document ${doc.id}: $e');
         }
       }
       
-      return results;
+      debugPrint('🔍 Filtered to ${products.length} available products');
+      
+      // Sort by distance if we have location data, otherwise by name
+      products.sort((a, b) {
+        // For now, sort by name since we don't have shop location data
+        // You can modify this when shop locations are available
+        return a["Name"].toString().compareTo(b["Name"].toString());
+      });
+      
+      debugPrint('🔍 Returning ${products.length} products to UI');
+      return products;
+      
     } catch (e) {
-      debugPrint('Error querying medicine inventory: $e');
+      debugPrint('❌ Error in products search: $e');
       rethrow;
     }
   }
   
-  /// Format results to match the current UI structure
-  static List<Map<String, dynamic>> _formatResultsForUI(
-    List<Map<String, dynamic>> medicineResults,
+  /// Check if a product is expired
+  static bool _isProductExpired(String expiryDate) {
+    if (expiryDate.isEmpty) return false;
+    
+    try {
+      // Parse the expiry date (format: "2025-07-08")
+      final expiry = DateTime.parse(expiryDate);
+      final now = DateTime.now();
+      return expiry.isBefore(now);
+    } catch (e) {
+      debugPrint('Error parsing expiry date: $expiryDate, $e');
+      return false; // If we can't parse, assume it's not expired
+    }
+  }
+  
+  /// Format product data for UI display
+  static Map<String, dynamic> _formatProductForUI(
+    Map<String, dynamic> data, 
+    String docId, 
     Position userPosition
   ) {
-    final formattedResults = <Map<String, dynamic>>[];
+    // Extract data from the product document
+    final name = data['name']?.toString() ?? 'Unknown Product';
+    final category = data['category']?.toString() ?? 'Medicine';
+    final price = data['price'] ?? 0;
+    final quantity = data['quantity'] ?? 0;
+    final expiry = data['expiry']?.toString() ?? '';
+    final shopId = data['shopId']?.toString() ?? '';
+    final type = data['type']?.toString() ?? 'Public';
+    final userEmail = data['userEmail']?.toString() ?? '';
     
-    for (final result in medicineResults) {
-      final Pharmacy pharmacy = result['pharmacy'];
-      final MedicineInventory medicine = result['medicine'];
-      
-      // Calculate distance
-      final distance = Geolocator.distanceBetween(
-        userPosition.latitude,
-        userPosition.longitude,
-        pharmacy.location.latitude,
-        pharmacy.location.longitude,
-      ) / 1000; // Convert to kilometers
-      
-      // Format to match current UI expectations
-      final formattedResult = {
-        "Name": medicine.medicineName,
-        "Description": medicine.description ?? "${medicine.category} - ${medicine.manufacturer}",
-        "StoreLocation": {
-          "latitude": pharmacy.location.latitude,
-          "longitude": pharmacy.location.longitude
-        },
-        "StoreName": pharmacy.name,
-        "Price": "Rs. ${medicine.price.toStringAsFixed(0)}",
-        "Quantity": medicine.quantity,
-        "Distance": distance.toStringAsFixed(2),
-        "Category": medicine.category,
-        "Manufacturer": medicine.manufacturer,
-        "Unit": medicine.unit,
-        "RequiresPrescription": medicine.requiresPrescription,
-        "PharmacyPhone": pharmacy.phoneNumber,
-        "PharmacyAddress": pharmacy.address,
-        "IsPharmacyOpen": pharmacy.isOpen,
-        "ExpiryDate": medicine.expiryDate,
-      };
-      
-      formattedResults.add(formattedResult);
-    }
+    // For now, use default location since shop locations aren't in the schema
+    // You can modify this when shop locations become available
+    final defaultLat = userPosition.latitude + (0.01 * (docId.hashCode % 10 - 5));
+    final defaultLon = userPosition.longitude + (0.01 * (docId.hashCode % 10 - 5));
     
-    // Sort by distance (closest first)
-    formattedResults.sort((a, b) => 
-      double.parse(a["Distance"]).compareTo(double.parse(b["Distance"]))
-    );
+    // Calculate a mock distance for now
+    final distance = Geolocator.distanceBetween(
+      userPosition.latitude,
+      userPosition.longitude,
+      defaultLat,
+      defaultLon,
+    ) / 1000; // Convert to kilometers
     
-    return formattedResults;
+    return {
+      "Name": name,
+      "Category": category,
+      "Description": "$category - Available in $type pharmacy",
+      "Price": "Rs. ${price.toString()}",
+      "Quantity": quantity,
+      "StoreName": "Shop ID: $shopId",
+      "StoreLocation": {
+        "latitude": defaultLat,
+        "longitude": defaultLon,
+      },
+      "Distance": distance.toStringAsFixed(2),
+      "Expire": expiry,
+      "Type": type,
+      "ShopId": shopId,
+      "UserEmail": userEmail,
+      "id": docId,
+    };
   }
   
-  /// Search for specific medicine by name across all nearby pharmacies
+  /// Search for specific medicine by name
   static Future<List<Map<String, dynamic>>> searchMedicineByName({
     required String medicineName,
     required Position userPosition,
   }) async {
-    try {
-      debugPrint('Searching for medicine: $medicineName');
-      
-      // Get nearby pharmacies first
-      final nearbyPharmacies = await _getNearbyPharmacies(userPosition);
-      
-      if (nearbyPharmacies.isEmpty) {
-        return [];
-      }
-      
-      // Search for specific medicine in these pharmacies
-      final results = <Map<String, dynamic>>[];
-      
-      for (final pharmacy in nearbyPharmacies) {
-        // Query medicine inventory for this specific medicine
-        final inventorySnapshot = await _firestore
-            .collection('medicine_inventory')
-            .where('pharmacyId', isEqualTo: pharmacy.id)
-            .get();
-        
-        for (final doc in inventorySnapshot.docs) {
-          try {
-            final inventory = MedicineInventory.fromFirestore(doc);
-            
-            // Check if medicine name matches (case-insensitive)
-            if (inventory.medicineName.toLowerCase().contains(medicineName.toLowerCase()) &&
-                inventory.isInStock && 
-                !inventory.isExpired) {
-              
-              results.add({
-                'pharmacy': pharmacy,
-                'medicine': inventory,
-              });
-            }
-          } catch (e) {
-            debugPrint('Error parsing medicine document ${doc.id}: $e');
-          }
-        }
-      }
-      
-      // Format results for UI
-      return _formatResultsForUI(results, userPosition);
-      
-    } catch (e) {
-      debugPrint('Error searching medicine by name: $e');
-      rethrow;
-    }
+    return searchNearbyMedicines(
+      userPosition: userPosition,
+      searchQuery: medicineName,
+    );
   }
   
   /// Get medicine suggestions for autocomplete
@@ -236,26 +167,29 @@ class PharmacySearchService {  static final FirebaseFirestore _firestore = Fireb
     try {
       final suggestions = <String>[];
       
-      // Query medicine inventory for suggestions
-      final inventorySnapshot = await _firestore
-          .collection('medicine_inventory')
+      // Query products collection for suggestions
+      final productsSnapshot = await _firestore
+          .collection('products')
           .limit(100) // Limit to prevent large queries
           .get();
       
-      for (final doc in inventorySnapshot.docs) {
+      for (final doc in productsSnapshot.docs) {
         try {
-          final inventory = MedicineInventory.fromFirestore(doc);
+          final data = doc.data();
           
-          if (inventory.medicineName.toLowerCase().contains(partialName.toLowerCase()) &&
-              !suggestions.contains(inventory.medicineName)) {
-            suggestions.add(inventory.medicineName);
-            
-            if (suggestions.length >= limit) {
-              break;
+          if (data['name']?.toString().toLowerCase().contains(partialName.toLowerCase()) == true &&
+              !suggestions.contains(data['name']?.toString() ?? '')) {
+            final productName = data['name']?.toString() ?? '';
+            if (productName.isNotEmpty) {
+              suggestions.add(productName);
+              
+              if (suggestions.length >= limit) {
+                break;
+              }
             }
           }
         } catch (e) {
-          debugPrint('Error parsing medicine document for suggestions ${doc.id}: $e');
+          debugPrint('Error parsing product document for suggestions ${doc.id}: $e');
         }
       }
       
@@ -264,6 +198,49 @@ class PharmacySearchService {  static final FirebaseFirestore _firestore = Fireb
     } catch (e) {
       debugPrint('Error getting medicine suggestions: $e');
       return [];
+    }
+  }
+  
+  /// Get products by category
+  static Future<List<Map<String, dynamic>>> getProductsByCategory({
+    required String category,
+    required Position userPosition,
+  }) async {
+    try {
+      debugPrint('Getting products by category: $category');
+      
+      final productsSnapshot = await _firestore
+          .collection('products')
+          .where('category', isEqualTo: category)
+          .get();
+      
+      final products = <Map<String, dynamic>>[];
+      
+      for (final doc in productsSnapshot.docs) {
+        try {
+          final data = doc.data();
+          
+          // Check if product is not expired and in stock
+          final expiryDate = data['expiry']?.toString() ?? '';
+          final quantity = data['quantity'] ?? 0;
+          
+          if (!_isProductExpired(expiryDate) && quantity > 0) {
+            final formattedProduct = _formatProductForUI(data, doc.id, userPosition);
+            products.add(formattedProduct);
+          }
+        } catch (e) {
+          debugPrint('Error parsing product document ${doc.id}: $e');
+        }
+      }
+      
+      // Sort by name
+      products.sort((a, b) => a["Name"].toString().compareTo(b["Name"].toString()));
+      
+      return products;
+      
+    } catch (e) {
+      debugPrint('Error getting products by category: $e');
+      rethrow;
     }
   }
 }
