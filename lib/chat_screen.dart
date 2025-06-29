@@ -64,24 +64,24 @@ RESPONSE RULES:
 
 REQUIRED RESPONSE FORMAT for clear symptoms:
 
- 💊 **Recommended Medicines**
+💊 **Recommended Medicines**
 - List specific OTC medicines with exact dosages (e.g., "Paracetamol 500mg every 6 hours")
 - Include both generic and common brand names
 - Specify forms (tablets, syrup, drops, etc.)
 - Give 2-3 medicine options when possible
 
- 🔍 **Possible Causes**
+🔍 **Possible Causes**
 - List 2-3 most likely medical causes
 - Explain each cause clearly and simply
 - Mention common triggers or risk factors
 
- ⚠️ **Precautions & Care Tips**
+⚠️ **Precautions & Care Tips**
 - Safety warnings for the recommended medicines
 - Home care tips and remedies
 - Things to avoid (food, activities, etc.)
 - Proper timing and dosage instructions
 
- 🏥 **When to See a Doctor**
+🏥 **When to See a Doctor**
 - Specific warning signs that require immediate medical care
 - Timeline for improvement expectations
 - What information to provide to healthcare professionals
@@ -151,22 +151,22 @@ IMPORTANT: You must provide practical medical suggestions. Do NOT refuse to reco
         // Example exchange to reinforce helpful behavior
         genai.Content.text("I have a headache. Can you help?"),
         genai.Content.model([
-          genai.TextPart("""## 💊 **Recommended Medicines**
+          genai.TextPart("""💊 **Recommended Medicines**
 - Paracetamol 500mg every 6 hours (max 4 doses per day)
 - Ibuprofen 400mg every 8 hours with food
 - Aspirin 300-600mg every 4-6 hours
 
-## 🔍 **Possible Causes**
+🔍 **Possible Causes**
 - Tension or stress headache
 - Dehydration
 - Eye strain from screens
 
-## ⚠️ **Precautions & Care Tips**
+⚠️ **Precautions & Care Tips**
 - Stay hydrated - drink plenty of water
 - Rest in a quiet, dark room
 - Apply cold compress to forehead
 
-## 🏥 **When to See a Doctor**
+🏥 **When to See a Doctor**
 - Severe, sudden headache unlike any before
 - Headache with fever, stiff neck, or confusion
 - No improvement after 2-3 days
