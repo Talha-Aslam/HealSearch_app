@@ -4,8 +4,6 @@ import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/login_screen.dart';
 import 'package:healsearch_app/profile.dart';
-import 'package:healsearch_app/medicine_search_screen.dart';
-import 'package:healsearch_app/setup_test_screen.dart';
 import 'package:healsearch_app/contact_us_screen_new.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -91,34 +89,6 @@ class Navbar extends StatelessWidget {
           },
           title: Text(
             'AI ChatBot',
-            style: TextStyle(
-                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
-          ),
-        ),
-        ListTile(
-          leading: Icon(Icons.local_pharmacy, size: 30, color: iconColor),
-          onTap: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (BuildContext context) {
-              return const MedicineSearchScreen();
-            }));
-          },
-          title: Text(
-            'Medicine Search',
-            style: TextStyle(
-                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
-          ),
-        ),
-        ListTile(
-          leading: Icon(Icons.build, size: 30, color: iconColor),
-          onTap: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (BuildContext context) {
-              return const SetupTestScreen();
-            }));
-          },
-          title: Text(
-            'Setup & Test',
             style: TextStyle(
                 color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
