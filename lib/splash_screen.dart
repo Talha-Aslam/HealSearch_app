@@ -29,7 +29,7 @@ class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
     // Initialize animation controller
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2500), // Faster animation
+      duration: const Duration(milliseconds: 1000), // Faster animation
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -41,34 +41,12 @@ class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
 
     // Start immediately without delay to prevent flash
     _animationController.forward();
-
-    // Navigate after delay
-    _navigateToHome();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
-  }
-
-  Future<void> _navigateToHome() async {
-    return Future.delayed(const Duration(milliseconds: 2500)).then((_) {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const Login(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
-        );
-      }
-    });
   }
 
   @override
