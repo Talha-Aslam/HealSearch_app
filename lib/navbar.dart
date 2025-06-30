@@ -6,9 +6,11 @@ import 'package:healsearch_app/login_screen.dart';
 import 'package:healsearch_app/profile.dart';
 import 'package:healsearch_app/contact_us_screen_new.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Navbar extends StatelessWidget {
   const Navbar({super.key});
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

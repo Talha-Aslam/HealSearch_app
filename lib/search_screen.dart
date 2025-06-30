@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/navbar.dart';
 import 'package:healsearch_app/pharmacy_map_screen_fixed.dart';
 import 'package:healsearch_app/services/pharmacy_search_service.dart';
+import 'package:healsearch_app/data.dart';
+import 'package:healsearch_app/login_screen.dart';
 
 // Utility class to prevent multiple snackbars from appearing
 class SnackBarDebouncer {
@@ -68,7 +71,29 @@ class _SearchState extends State<Search> {
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    // Initialize the app with location and products
+    
+    // Check authentication before proceeding
+    _checkAuthenticationAndInitialize();
+  }
+
+  Future<void> _checkAuthenticationAndInitialize() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final appDataInstance = AppData();
+    
+    // Check if user is properly authenticated
+    if (user == null || !appDataInstance.isLoggedIn || appDataInstance.Email == "You are not logged in") {
+      // User is not properly authenticated, redirect to login
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const Login()),
+          );
+        }
+      });
+      return;
+    }
+    
+    // User is authenticated, proceed with initialization
     _initializeWithLocation();
   } // Initialize the app with location first, then fetch products
 
@@ -852,109 +877,11 @@ class _SearchState extends State<Search> {
     }
   }
 
-  /// Show a warning if there are medicines expiring soon
+  /// Check for medicines expiring soon (without showing snackbar alerts)
   void _checkForExpiringSoonMedicines() {
-    final expiringSoonWeek = searchedProducts.where((product) {
-      final expiryDate = product["Expire"]?.toString() ?? '';
-      return _isExpiringWithinWeek(expiryDate);
-    }).toList();
-
-    final expiringSoonMonth = searchedProducts.where((product) {
-      final expiryDate = product["Expire"]?.toString() ?? '';
-      return _isExpiringSoon(expiryDate) && !_isExpiringWithinWeek(expiryDate);
-    }).toList();
-
-    if (expiringSoonWeek.isNotEmpty && mounted) {
-      final count = expiringSoonWeek.length;
-      SnackBarDebouncer.showSnackBar(
-        context,
-        "🚨 URGENT: $count medicine${count > 1 ? 's' : ''} expiring within a week!",
-        duration: const Duration(seconds: 5),
-      );
-    } else if (expiringSoonMonth.isNotEmpty && mounted) {
-      final count = expiringSoonMonth.length;
-      SnackBarDebouncer.showSnackBar(
-        context,
-        "⚠️ $count medicine${count > 1 ? 's' : ''} expiring within 3 months",
-        duration: const Duration(seconds: 3),
-      );
-    }
-  }
-
-  /// Check if a medicine is expiring within a week
-  bool _isExpiringWithinWeek(String expiryDate) {
-    if (expiryDate.isEmpty) return false;
-
-    try {
-      DateTime expiry;
-      final now = DateTime.now();
-
-      // Handle different date formats
-      if (expiryDate.contains('/')) {
-        final parts = expiryDate.split('/');
-        if (parts.length == 3) {
-          final year = int.parse(parts[2]);
-          final month = int.parse(parts[1]);
-          final day = int.parse(parts[0]);
-
-          if (month > 12) {
-            expiry = DateTime(year, day, month);
-          } else {
-            expiry = DateTime(year, month, day);
-          }
-        } else {
-          return false;
-        }
-      } else if (expiryDate.contains('-')) {
-        expiry = DateTime.parse(expiryDate);
-      } else {
-        expiry = DateTime.parse(expiryDate);
-      }
-
-      // Check if expiring within a week
-      final oneWeekFromNow = DateTime(now.year, now.month, now.day + 7);
-      return expiry.isBefore(oneWeekFromNow) && expiry.isAfter(now);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Check if a medicine is expiring soon (within 3 months)
-  bool _isExpiringSoon(String expiryDate) {
-    if (expiryDate.isEmpty) return false;
-
-    try {
-      DateTime expiry;
-      final now = DateTime.now();
-
-      // Handle different date formats
-      if (expiryDate.contains('/')) {
-        final parts = expiryDate.split('/');
-        if (parts.length == 3) {
-          final year = int.parse(parts[2]);
-          final month = int.parse(parts[1]);
-          final day = int.parse(parts[0]);
-
-          if (month > 12) {
-            expiry = DateTime(year, day, month);
-          } else {
-            expiry = DateTime(year, month, day);
-          }
-        } else {
-          return false;
-        }
-      } else if (expiryDate.contains('-')) {
-        expiry = DateTime.parse(expiryDate);
-      } else {
-        expiry = DateTime.parse(expiryDate);
-      }
-
-      // Check if expiring within 3 months
-      final threeMonthsFromNow = DateTime(now.year, now.month + 3, now.day);
-      return expiry.isBefore(threeMonthsFromNow) && expiry.isAfter(now);
-    } catch (e) {
-      return false;
-    }
+    // This method is now a no-op to avoid interrupting user experience
+    // The expiry information is still visible in the UI through color coding
+    // and expiry date display in the CardView widgets
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:healsearch_app/splash_screen.dart';
 import 'package:healsearch_app/login_screen.dart';
 import 'package:healsearch_app/navbar.dart';
+import 'package:healsearch_app/data.dart';
 
 class AppStateManager extends StatefulWidget {
   const AppStateManager({super.key});
@@ -61,22 +62,32 @@ class _AppStateManagerState extends State<AppStateManager> {
   void _checkAuthAndNavigate() {
     try {
       final user = FirebaseAuth.instance.currentUser;
+      final appDataInstance = AppData();
 
       setState(() {
         _showSplash = false;
         _isLoading = false;
 
-        if (user != null) {
-          // User is logged in - go to main app
+        // Check both Firebase auth AND app data login status
+        if (user != null &&
+            appDataInstance.isLoggedIn &&
+            appDataInstance.Email != "You are not logged in") {
+          // User is properly logged in - go to main app
           _currentPage = const Navbar();
         } else {
-          // User not logged in - go to login
+          // User not properly logged in - clear any stale data and go to login
+          appDataInstance.clearUserData();
+          if (user != null) {
+            // Sign out from Firebase if there's a mismatch
+            FirebaseAuth.instance.signOut();
+          }
           _currentPage = const Login();
         }
       });
     } catch (e) {
       debugPrint('Error checking auth state: $e');
-      // Fallback to login screen
+      // Fallback to login screen and clear any stale data
+      AppData().clearUserData();
       setState(() {
         _showSplash = false;
         _isLoading = false;
