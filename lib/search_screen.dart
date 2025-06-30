@@ -55,61 +55,6 @@ class _SearchState extends State<Search> {
   List nearbyProducts = [];
   List searchedProducts = [];
   Timer? _searchTimer;
-
-  // Simple dummy data as fallback when no Firestore data is available
-  List<Map<String, dynamic>> _getDummyData() {
-    final defaultLat = 31.5204; // Lahore coordinates as default
-    final defaultLon = 74.3587;
-    
-    return [
-      {
-        "Name": "Paracetamol 500mg",
-        "Category": "Pain Relief",
-        "Description": "Pain reliever and fever reducer",
-        "Price": "Rs. 25.50",
-        "Quantity": 150,
-        "StoreName": "HealthCare Pharmacy",
-        "StoreLocation": {
-          "latitude": defaultLat,
-          "longitude": defaultLon,
-        },
-        "Distance": "0.5",
-        "Expire": "2025-12-31",
-        "id": "dummy_1",
-      },
-      {
-        "Name": "Aspirin 81mg",
-        "Category": "Cardiovascular",
-        "Description": "Low-dose aspirin for heart health",
-        "Price": "Rs. 35.25",
-        "Quantity": 100,
-        "StoreName": "City Pharmacy",
-        "StoreLocation": {
-          "latitude": defaultLat + 0.01,
-          "longitude": defaultLon + 0.01,
-        },
-        "Distance": "1.2",
-        "Expire": "2026-06-30",
-        "id": "dummy_2",
-      },
-      {
-        "Name": "Ibuprofen 400mg",
-        "Category": "Pain Relief",
-        "Description": "Anti-inflammatory pain reliever",
-        "Price": "Rs. 45.75",
-        "Quantity": 75,
-        "StoreName": "MediCare Store",
-        "StoreLocation": {
-          "latitude": defaultLat - 0.01,
-          "longitude": defaultLon - 0.01,
-        },
-        "Distance": "2.1",
-        "Expire": "2025-08-15",
-        "id": "dummy_3",
-      },
-    ];
-  }
-
   late double userlat;
   late double userlon;
   bool status1 = false;
@@ -295,7 +240,7 @@ class _SearchState extends State<Search> {
                         onChanged: (value) {
                           // Cancel previous search timer if it exists
                           _searchTimer?.cancel();
-                          
+
                           // Real-time search using Firestore with debouncing
                           if (status == 0) {
                             if (value.trim().isEmpty) {
@@ -306,52 +251,55 @@ class _SearchState extends State<Search> {
                               });
                             } else {
                               // Debounce the search to avoid too many API calls
-                              _searchTimer = Timer(const Duration(milliseconds: 500), () async {
+                              _searchTimer = Timer(
+                                  const Duration(milliseconds: 500), () async {
                                 setState(() {
                                   _isLoading = true;
                                 });
-                                
+
                                 try {
                                   // Search for medicines with the query
-                                  var position = await Flutter_api().getPosition();
-                                  var filteredProducts = await PharmacySearchService.searchNearbyMedicines(
+                                  var position =
+                                      await Flutter_api().getPosition();
+                                  var filteredProducts =
+                                      await PharmacySearchService
+                                          .searchNearbyMedicines(
                                     userPosition: position,
                                     searchQuery: value.trim(),
                                   );
-                                  
-                                  // If no results from Firestore, filter dummy data locally
+
+                                  // If no results from Firestore, show empty results
                                   if (filteredProducts.isEmpty) {
-                                    final dummyData = _getDummyData();
-                                    filteredProducts = dummyData
-                                        .where((element) => element["Name"]
-                                            .toString()
-                                            .toLowerCase()
-                                            .contains(value.toLowerCase()))
-                                        .toList();
+                                    debugPrint(
+                                        'No medicines found matching search: $value');
                                   }
-                                  
+
                                   setState(() {
                                     searchedProducts = filteredProducts;
                                     _applyFilter();
                                     _isLoading = false;
                                   });
+
+                                  // Check for expiring medicines in search results
+                                  _checkForExpiringSoonMedicines();
                                 } catch (e) {
                                   debugPrint('Error during search: $e');
-                                  
-                                  // Fall back to local filtering of dummy data
-                                  final dummyData = _getDummyData();
-                                  final filteredDummyData = dummyData
-                                      .where((element) => element["Name"]
-                                          .toString()
-                                          .toLowerCase()
-                                          .contains(value.toLowerCase()))
-                                      .toList();
-                                  
+
+                                  // Show error message and empty results
                                   setState(() {
-                                    searchedProducts = filteredDummyData;
+                                    searchedProducts = [];
                                     _applyFilter();
                                     _isLoading = false;
                                   });
+
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            "Error searching medicines: Please try again"),
+                                      ),
+                                    );
+                                  }
                                 }
                               });
                             }
@@ -537,10 +485,33 @@ class _SearchState extends State<Search> {
                         ? Center(
                             child: Padding(
                               padding: const EdgeInsets.only(top: 270.0),
-                              child: Text(
-                                "No medicines found",
-                                style: TextStyle(
-                                    fontSize: 16, color: onBackgroundColor),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 64,
+                                    color: onBackgroundColor.withOpacity(0.5),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    "No medicines found",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: onBackgroundColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "Try searching for a different medicine\nor check your internet connection",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: onBackgroundColor.withOpacity(0.7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           )
@@ -807,23 +778,23 @@ class _SearchState extends State<Search> {
     try {
       // Get user position
       var position = await Flutter_api().getPosition();
-      
+
       debugPrint('User position: ${position.latitude}, ${position.longitude}');
-      
+
       // Search for nearby medicines using Firestore
       var products = await PharmacySearchService.searchNearbyMedicines(
         userPosition: position,
         searchQuery: null, // Get all medicines initially
       );
-      
+
       debugPrint('Found ${products.length} medicines from Firestore');
-      
+
       // If no products found, show a message but don't throw an error
       if (products.isEmpty) {
         debugPrint('No medicines found in nearby pharmacies');
-        // Fall back to dummy data if no real data is found
-        products = _getDummyData(); 
-        debugPrint('Using dummy data as fallback: ${products.length} items');
+        // Show message that no medicines were found
+        debugPrint(
+            'No medicines found in nearby pharmacies - showing empty list');
       }
 
       // Update state to display the products
@@ -832,20 +803,23 @@ class _SearchState extends State<Search> {
           allProducts = products;
           searchedProducts = products;
         });
+
+        // Check for medicines expiring soon and show warning
+        _checkForExpiringSoonMedicines();
       }
     } catch (e) {
       debugPrint('Error loading medicine data: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("Error loading medicine data: Please try again")));
       }
-      
-      // Fall back to dummy data on error
+
+      // Show empty results on error
       if (mounted) {
         setState(() {
-          allProducts = _getDummyData();
-          searchedProducts = _getDummyData();
+          allProducts = [];
+          searchedProducts = [];
         });
       }
     }
@@ -877,12 +851,155 @@ class _SearchState extends State<Search> {
       }
     }
   }
+
+  /// Show a warning if there are medicines expiring soon
+  void _checkForExpiringSoonMedicines() {
+    final expiringSoon = searchedProducts.where((product) {
+      final expiryDate = product["Expire"]?.toString() ?? '';
+      return _isExpiringSoon(expiryDate);
+    }).toList();
+
+    if (expiringSoon.isNotEmpty && mounted) {
+      final count = expiringSoon.length;
+      SnackBarDebouncer.showSnackBar(
+        context,
+        "⚠️ $count medicine${count > 1 ? 's' : ''} expiring within 3 months",
+        duration: const Duration(seconds: 3),
+      );
+    }
+  }
+
+  /// Check if a medicine is expiring soon (within 3 months)
+  bool _isExpiringSoon(String expiryDate) {
+    if (expiryDate.isEmpty) return false;
+
+    try {
+      DateTime expiry;
+      final now = DateTime.now();
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return false;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Check if expiring within 3 months
+      final threeMonthsFromNow = DateTime(now.year, now.month + 3, now.day);
+      return expiry.isBefore(threeMonthsFromNow) && expiry.isAfter(now);
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 class CardView extends StatelessWidget {
   final Map productList;
 
   const CardView({required this.productList, super.key});
+
+  /// Check if a medicine is expiring soon (within 3 months)
+  bool _isExpiringSoon(String expiryDate) {
+    if (expiryDate.isEmpty) return false;
+
+    try {
+      DateTime expiry;
+      final now = DateTime.now();
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return false;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Check if expiring within 3 months
+      final threeMonthsFromNow = DateTime(now.year, now.month + 3, now.day);
+      return expiry.isBefore(threeMonthsFromNow) && expiry.isAfter(now);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Format expiry date for display
+  String _formatExpiryDate(String expiryDate) {
+    if (expiryDate.isEmpty) return 'N/A';
+
+    try {
+      DateTime expiry;
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return expiryDate;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Format as "Dec 2025" or "15 Aug 2025" for better readability
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
+      return "${expiry.day} ${months[expiry.month - 1]} ${expiry.year}";
+    } catch (e) {
+      return expiryDate; // Return original if parsing fails
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -916,11 +1033,47 @@ class CardView extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           maxLines: 1,
         ),
-        subtitle: Text(
-          productList["Description"],
-          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              productList["Description"],
+              style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            // Add expiry date display
+            if (productList["Expire"] != null &&
+                productList["Expire"].toString().isNotEmpty)
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: _isExpiringSoon(productList["Expire"].toString())
+                        ? Colors.orange
+                        : theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Expires: ${_formatExpiryDate(productList["Expire"].toString())}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _isExpiringSoon(productList["Expire"].toString())
+                          ? Colors.orange
+                          : theme.colorScheme.onSurface.withOpacity(0.6),
+                      fontWeight:
+                          _isExpiringSoon(productList["Expire"].toString())
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
         trailing: Column(
           mainAxisSize: MainAxisSize.min,
