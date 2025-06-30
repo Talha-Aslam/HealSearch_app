@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Background colors for launch screen -->
+    <color name="background_light">#FFFFFF</color>
+    <color name="background_dark">#121212</color>
+	<color name="ic_launcher_background">#FFFFFF</color>
+</resources>

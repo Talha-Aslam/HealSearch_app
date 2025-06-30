@@ -10,27 +10,27 @@ version: 1.0.0+1
 environment:
   sdk: ">=2.18.6 <3.0.0"
 
-# Native splash screen configuration
-flutter_native_splash:
-  color: "#FFFFFF"
-  color_dark: "#121212"
-  image: Images/logo3.png
-  android: true
-  ios: true
-  web: false
-  
-  # Ensures colors match with your actual splash screen widget
-  android_gravity: center
-  ios_content_mode: center
-  
-  # Maintain the status bar appearance during splash
-  fullscreen: false
-  
-  # Add dark mode support
-  android_12:
-    icon_background_color: "#FFFFFF"
-    icon_background_color_dark: "#121212"
-    image: Images/logo3.png
+# Native splash screen configuration - DISABLED to prevent double splash
+# flutter_native_splash:
+#   color: "#FFFFFF"
+#   color_dark: "#121212"
+#   image: assets/healsearch_logo.png
+#   android: true
+#   ios: true
+#   web: false
+#   
+#   # Ensures colors match with your actual splash screen widget
+#   android_gravity: center
+#   ios_content_mode: center
+#   
+#   # Maintain the status bar appearance during splash
+#   fullscreen: false
+#   
+#   # Add dark mode support
+#   android_12:
+#     icon_background_color: "#FFFFFF"
+#     icon_background_color_dark: "#121212"
+#     image: assets/healsearch_logo.png
 
 dependencies:
   google_nav_bar: ^5.0.6
@@ -94,12 +94,15 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/app_icon.png"
+  image_path: "assets/healsearch_logo.png"
 
 flutter:
   uses-material-design: true
   assets:
+    - assets/
+    - assets/healsearch_logo.png
     - Images/
+    - Images/appicon.png
     - Images/logo3.png
     - Images/man.png
     - Images/bkg.jpg
