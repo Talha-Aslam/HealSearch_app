@@ -854,18 +854,68 @@ class _SearchState extends State<Search> {
 
   /// Show a warning if there are medicines expiring soon
   void _checkForExpiringSoonMedicines() {
-    final expiringSoon = searchedProducts.where((product) {
+    final expiringSoonWeek = searchedProducts.where((product) {
       final expiryDate = product["Expire"]?.toString() ?? '';
-      return _isExpiringSoon(expiryDate);
+      return _isExpiringWithinWeek(expiryDate);
     }).toList();
 
-    if (expiringSoon.isNotEmpty && mounted) {
-      final count = expiringSoon.length;
+    final expiringSoonMonth = searchedProducts.where((product) {
+      final expiryDate = product["Expire"]?.toString() ?? '';
+      return _isExpiringSoon(expiryDate) && !_isExpiringWithinWeek(expiryDate);
+    }).toList();
+
+    if (expiringSoonWeek.isNotEmpty && mounted) {
+      final count = expiringSoonWeek.length;
+      SnackBarDebouncer.showSnackBar(
+        context,
+        "🚨 URGENT: $count medicine${count > 1 ? 's' : ''} expiring within a week!",
+        duration: const Duration(seconds: 5),
+      );
+    } else if (expiringSoonMonth.isNotEmpty && mounted) {
+      final count = expiringSoonMonth.length;
       SnackBarDebouncer.showSnackBar(
         context,
         "⚠️ $count medicine${count > 1 ? 's' : ''} expiring within 3 months",
         duration: const Duration(seconds: 3),
       );
+    }
+  }
+
+  /// Check if a medicine is expiring within a week
+  bool _isExpiringWithinWeek(String expiryDate) {
+    if (expiryDate.isEmpty) return false;
+
+    try {
+      DateTime expiry;
+      final now = DateTime.now();
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return false;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Check if expiring within a week
+      final oneWeekFromNow = DateTime(now.year, now.month, now.day + 7);
+      return expiry.isBefore(oneWeekFromNow) && expiry.isAfter(now);
+    } catch (e) {
+      return false;
     }
   }
 
@@ -912,6 +962,66 @@ class CardView extends StatelessWidget {
   final Map productList;
 
   const CardView({required this.productList, super.key});
+
+  /// Get color for expiry date based on timeframe
+  Color _getExpiryColor(String expiryDate, ThemeData theme) {
+    if (_isExpiringWithinWeek(expiryDate)) {
+      return Colors.red; // Red for urgent (within a week)
+    } else if (_isExpiringSoon(expiryDate)) {
+      return Colors.orange; // Orange for warning (within 3 months)
+    } else {
+      return theme.colorScheme.onSurface.withOpacity(0.6); // Normal color
+    }
+  }
+
+  /// Get font weight for expiry date based on timeframe
+  FontWeight _getExpiryFontWeight(String expiryDate) {
+    if (_isExpiringWithinWeek(expiryDate)) {
+      return FontWeight.bold; // Bold for urgent
+    } else if (_isExpiringSoon(expiryDate)) {
+      return FontWeight.w600; // Semi-bold for warning
+    } else {
+      return FontWeight.normal; // Normal weight
+    }
+  }
+
+  /// Check if expiring within a week (urgent)
+  bool _isExpiringWithinWeek(String expiryDate) {
+    if (expiryDate.isEmpty) return false;
+
+    try {
+      DateTime expiry;
+      final now = DateTime.now();
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return false;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Check if expiring within a week
+      final oneWeekFromNow = DateTime(now.year, now.month, now.day + 7);
+      return expiry.isBefore(oneWeekFromNow) && expiry.isAfter(now);
+    } catch (e) {
+      return false;
+    }
+  }
 
   /// Check if a medicine is expiring soon (within 3 months)
   bool _isExpiringSoon(String expiryDate) {
@@ -1053,22 +1163,18 @@ class CardView extends StatelessWidget {
                   Icon(
                     Icons.schedule,
                     size: 14,
-                    color: _isExpiringSoon(productList["Expire"].toString())
-                        ? Colors.orange
-                        : theme.colorScheme.onSurface.withOpacity(0.6),
+                    color: _getExpiryColor(
+                        productList["Expire"].toString(), theme),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     "Expires: ${_formatExpiryDate(productList["Expire"].toString())}",
                     style: TextStyle(
                       fontSize: 12,
-                      color: _isExpiringSoon(productList["Expire"].toString())
-                          ? Colors.orange
-                          : theme.colorScheme.onSurface.withOpacity(0.6),
-                      fontWeight:
-                          _isExpiringSoon(productList["Expire"].toString())
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                      color: _getExpiryColor(
+                          productList["Expire"].toString(), theme),
+                      fontWeight: _getExpiryFontWeight(
+                          productList["Expire"].toString()),
                     ),
                   ),
                 ],
