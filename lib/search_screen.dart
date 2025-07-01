@@ -65,6 +65,7 @@ class _SearchState extends State<Search> {
 
   int status = 0;
   String _selectedFilter = 'distance'; // 'distance' or 'price'
+  bool _isAscendingOrder = true; // For ascending/descending sort
   bool _isLoading = true; // Loading state
 
   late GlobalKey<ScaffoldState> _scaffoldKey;
@@ -701,15 +702,28 @@ class _SearchState extends State<Search> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Sort Options',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
             ListTile(
               leading: Icon(Icons.location_on,
                   color: _selectedFilter == 'distance'
                       ? Theme.of(context).colorScheme.primary
                       : null),
               title: Text('Sort by Distance'),
+              subtitle: Text('Nearest first'),
               onTap: () {
                 setState(() {
                   _selectedFilter = 'distance';
+                  _isAscendingOrder = true; // Always ascending for distance
                   _applyFilter();
                 });
                 Navigator.pop(context);
@@ -721,19 +735,42 @@ class _SearchState extends State<Search> {
                   .withOpacity(0.2),
             ),
             ListTile(
-              leading: Icon(Icons.attach_money,
-                  color: _selectedFilter == 'price'
+              leading: Icon(Icons.trending_down,
+                  color: _selectedFilter == 'price' && _isAscendingOrder
                       ? Theme.of(context).colorScheme.primary
                       : null),
-              title: Text('Sort by Price'),
+              title: Text('Sort by Price (Low to High)'),
+              subtitle: Text('Cheapest first'),
               onTap: () {
                 setState(() {
                   _selectedFilter = 'price';
+                  _isAscendingOrder = true;
                   _applyFilter();
                 });
                 Navigator.pop(context);
               },
-              selected: _selectedFilter == 'price',
+              selected: _selectedFilter == 'price' && _isAscendingOrder,
+              selectedTileColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withOpacity(0.2),
+            ),
+            ListTile(
+              leading: Icon(Icons.trending_up,
+                  color: _selectedFilter == 'price' && !_isAscendingOrder
+                      ? Theme.of(context).colorScheme.primary
+                      : null),
+              title: Text('Sort by Price (High to Low)'),
+              subtitle: Text('Highest price first'),
+              onTap: () {
+                setState(() {
+                  _selectedFilter = 'price';
+                  _isAscendingOrder = false;
+                  _applyFilter();
+                });
+                Navigator.pop(context);
+              },
+              selected: _selectedFilter == 'price' && !_isAscendingOrder,
               selectedTileColor: Theme.of(context)
                   .colorScheme
                   .primaryContainer
@@ -746,19 +783,46 @@ class _SearchState extends State<Search> {
   }
 
   void _applyFilter() {
+    debugPrint('🔍 Applying filter: $_selectedFilter (ascending: $_isAscendingOrder)');
+    
     if (_selectedFilter == 'distance') {
-      searchedProducts.sort((a, b) => double.parse(a["Distance"] as String)
-          .compareTo(double.parse(b["Distance"] as String)));
+      // For distance, we always want ascending (closest first)
+      searchedProducts.sort((a, b) {
+        if (a["Distance"] == "Unknown" && b["Distance"] == "Unknown") return 0;
+        if (a["Distance"] == "Unknown") return 1; // Unknown distances go last
+        if (b["Distance"] == "Unknown") return -1;
+        return double.parse(a["Distance"] as String)
+            .compareTo(double.parse(b["Distance"] as String));
+      });
     } else if (_selectedFilter == 'price') {
       searchedProducts.sort((a, b) {
-        double priceA = double.tryParse(
-                (a["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
-            0;
-        double priceB = double.tryParse(
-                (b["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
-            0;
-        return priceA.compareTo(priceB);
+        int compareResult;
+        
+        // First try to use the numeric PriceValue field
+        if (a.containsKey("PriceValue") && b.containsKey("PriceValue")) {
+          compareResult = (a["PriceValue"] as num).compareTo(b["PriceValue"] as num);
+          debugPrint('  Comparing prices: ${a["Name"]} (${a["PriceValue"]}) vs ${b["Name"]} (${b["PriceValue"]}) = $compareResult');
+        } else {
+          // Fallback to parsing from the Price string if PriceValue is not available
+          double priceA = double.tryParse(
+                  (a["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
+              0;
+          double priceB = double.tryParse(
+                  (b["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
+              0;
+          compareResult = priceA.compareTo(priceB);
+          debugPrint('  Comparing parsed prices: ${a["Name"]} ($priceA) vs ${b["Name"]} ($priceB) = $compareResult');
+        }
+        
+        // Reverse the comparison result if descending order is selected
+        return _isAscendingOrder ? compareResult : -compareResult;
       });
+      
+      // Log the sorted prices for debugging
+      debugPrint('🔍 Sorted by price (${_isAscendingOrder ? 'ascending' : 'descending'}):');
+      for (var product in searchedProducts.take(5)) {
+        debugPrint('  ${product["Name"]}: ${product["PriceValue"] ?? product["Price"]}');
+      }
     }
   }
 

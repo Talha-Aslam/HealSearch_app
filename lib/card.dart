@@ -67,7 +67,7 @@ class CardView extends StatelessWidget {
                   height: 5,
                 ),
                 Text(
-                  'Rs. ${productList["Price"]}',
+                  '${productList["Price"]}',
                   style: TextStyle(
                       color: theme.colorScheme.secondary,
                       fontWeight: FontWeight.normal,

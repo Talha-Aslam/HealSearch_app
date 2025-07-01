@@ -377,6 +377,7 @@ class PharmacySearchService {
       "Category": category,
       "Description": "$category - Available in $type pharmacy",
       "Price": "Rs. ${price.toString()}",
+      "PriceValue": price, // Store the numeric price value for sorting
       "Quantity": quantity,
       "StoreName": pharmacyName,
       "StoreLocation": {
