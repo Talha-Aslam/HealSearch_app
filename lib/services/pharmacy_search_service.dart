@@ -237,52 +237,59 @@ class PharmacySearchService {
           debugPrint('🔬 Raw pharmacy data: $pharmacyData');
 
           // Try to get location data with flexible parsing for different data structures
-      if (pharmacyData['location'] != null) {
-        try {
-          // First try to parse as a GeoPoint (the proper Firestore way)
-          if (pharmacyData['location'] is GeoPoint) {
-            final location = pharmacyData['location'] as GeoPoint;
-            if (location.latitude != 0 || location.longitude != 0) {
-              pharmacyLat = location.latitude;
-              pharmacyLon = location.longitude;
-              debugPrint('✅ Found pharmacy location from GeoPoint: $pharmacyLat, $pharmacyLon');
-            }
-          } 
-          // Then try to parse as a Map (your current format)
-          else if (pharmacyData['location'] is Map) {
-            final locationMap = pharmacyData['location'] as Map;
-            if (locationMap['latitude'] != null && locationMap['longitude'] != null) {
-              pharmacyLat = double.parse(locationMap['latitude'].toString());
-              pharmacyLon = double.parse(locationMap['longitude'].toString());
-              debugPrint('✅ Found pharmacy location from Map: $pharmacyLat, $pharmacyLon');
+          if (pharmacyData['location'] != null) {
+            try {
+              // First try to parse as a GeoPoint (the proper Firestore way)
+              if (pharmacyData['location'] is GeoPoint) {
+                final location = pharmacyData['location'] as GeoPoint;
+                if (location.latitude != 0 || location.longitude != 0) {
+                  pharmacyLat = location.latitude;
+                  pharmacyLon = location.longitude;
+                  debugPrint(
+                      '✅ Found pharmacy location from GeoPoint: $pharmacyLat, $pharmacyLon');
+                }
+              }
+              // Then try to parse as a Map (your current format)
+              else if (pharmacyData['location'] is Map) {
+                final locationMap = pharmacyData['location'] as Map;
+                if (locationMap['latitude'] != null &&
+                    locationMap['longitude'] != null) {
+                  pharmacyLat =
+                      double.parse(locationMap['latitude'].toString());
+                  pharmacyLon =
+                      double.parse(locationMap['longitude'].toString());
+                  debugPrint(
+                      '✅ Found pharmacy location from Map: $pharmacyLat, $pharmacyLon');
+                }
+              } else {
+                debugPrint(
+                    '⚠️ Unknown location format: ${pharmacyData['location']}');
+              }
+            } catch (e) {
+              debugPrint('❌ Error parsing location data: $e');
             }
           }
-          else {
-            debugPrint('⚠️ Unknown location format: ${pharmacyData['location']}');
-          }
-        } catch (e) {
-          debugPrint('❌ Error parsing location data: $e');
-        }
-      } 
-      // Try to get location from address field as fallback
-      else if (pharmacyData['address'] != null) {
-        final addressValue = pharmacyData['address'].toString();
-        debugPrint('⚠️ No location field found, checking address: $addressValue');
-        
-        // Try to parse address as coordinates (some of your records store it this way)
-        if (addressValue.contains(',')) {
-          try {
-            final parts = addressValue.split(',');
-            if (parts.length == 2) {
-              pharmacyLat = double.parse(parts[0].trim());
-              pharmacyLon = double.parse(parts[1].trim());
-              debugPrint('✅ Found coordinates in address field: $pharmacyLat, $pharmacyLon');
+          // Try to get location from address field as fallback
+          else if (pharmacyData['address'] != null) {
+            final addressValue = pharmacyData['address'].toString();
+            debugPrint(
+                '⚠️ No location field found, checking address: $addressValue');
+
+            // Try to parse address as coordinates (some of your records store it this way)
+            if (addressValue.contains(',')) {
+              try {
+                final parts = addressValue.split(',');
+                if (parts.length == 2) {
+                  pharmacyLat = double.parse(parts[0].trim());
+                  pharmacyLon = double.parse(parts[1].trim());
+                  debugPrint(
+                      '✅ Found coordinates in address field: $pharmacyLat, $pharmacyLon');
+                }
+              } catch (e) {
+                debugPrint('❌ Could not parse coordinates from address: $e');
+              }
             }
-          } catch (e) {
-            debugPrint('❌ Could not parse coordinates from address: $e');
           }
-        }
-      }
         } else {
           // 2. Try querying by shopId field
           debugPrint(

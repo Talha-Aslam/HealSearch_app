@@ -27,65 +27,68 @@ class PharmacyCacheService {
       Set<String> uniqueLocations = {};
 
       debugPrint('🔬 PHARMACY DATA DIAGNOSTICS:');
-      debugPrint('🔬 Found ${totalPharmacies} pharmacies in Firestore');
+      debugPrint('🔬 Found $totalPharmacies pharmacies in Firestore');
 
       for (final doc in pharmaciesSnapshot.docs) {
         final data = doc.data();
         final name = data['name']?.toString() ?? 'Unknown Pharmacy';
 
         // Print pharmacy details for debugging
-        debugPrint('🔬 Pharmacy: ${name} (ID: ${doc.id})');
+        debugPrint('🔬 Pharmacy: $name (ID: ${doc.id})');
         debugPrint('🔬 Raw data: $data');
 
         // Cache with multiple possible keys to handle different formats
-        _pharmacyNameCache[doc.id] = name; // Document ID        // Cache location data if available and valid
+        _pharmacyNameCache[doc.id] =
+            name; // Document ID        // Cache location data if available and valid
         if (data['location'] != null) {
           try {
             // Try to handle both GeoPoint and Map formats
             double lat = 0, lon = 0;
             bool validLocation = false;
-            
+
             if (data['location'] is GeoPoint) {
               final location = data['location'] as GeoPoint;
               lat = location.latitude;
               lon = location.longitude;
               validLocation = (lat != 0 || lon != 0);
               debugPrint('📍 Found GeoPoint location: $lat, $lon');
-            } 
-            else if (data['location'] is Map) {
+            } else if (data['location'] is Map) {
               final locationMap = data['location'] as Map;
-              if (locationMap['latitude'] != null && locationMap['longitude'] != null) {
+              if (locationMap['latitude'] != null &&
+                  locationMap['longitude'] != null) {
                 lat = double.parse(locationMap['latitude'].toString());
                 lon = double.parse(locationMap['longitude'].toString());
                 validLocation = (lat != 0 || lon != 0);
                 debugPrint('📍 Found Map location: $lat, $lon');
               }
             }
-            
+
             if (validLocation) {
               // Create a GeoPoint for caching
               final geoPoint = GeoPoint(lat, lon);
               _pharmacyLocationCache[doc.id] = geoPoint;
-              
+
               // Track unique locations
               String locationKey = '$lat,$lon';
               uniqueLocations.add(locationKey);
-              
+
               validLocationCount++;
               debugPrint('📍 Cached location for ${doc.id}: $lat, $lon');
             } else {
               invalidLocationCount++;
-              debugPrint('⚠️ Skipped caching invalid/zero coordinates for ${doc.id}');
+              debugPrint(
+                  '⚠️ Skipped caching invalid/zero coordinates for ${doc.id}');
             }
           } catch (e) {
             debugPrint('❌ Error caching location for ${doc.id}: $e');
           }
-        } 
+        }
         // Try to get location from address field as fallback
         else if (data['address'] != null) {
           final addressValue = data['address'].toString();
-          debugPrint('🔍 Checking address field for coordinates: $addressValue');
-          
+          debugPrint(
+              '🔍 Checking address field for coordinates: $addressValue');
+
           // Some records store coordinates in the address field
           if (addressValue.contains(',')) {
             try {
@@ -93,23 +96,25 @@ class PharmacyCacheService {
               if (parts.length == 2) {
                 double lat = double.parse(parts[0].trim());
                 double lon = double.parse(parts[1].trim());
-                
+
                 // Only cache valid coordinates
                 if (lat != 0 || lon != 0) {
                   final geoPoint = GeoPoint(lat, lon);
                   _pharmacyLocationCache[doc.id] = geoPoint;
-                  
+
                   // Also cache under shopId if available
                   if (data['shopId'] != null) {
                     final shopIdStr = data['shopId'].toString();
                     _pharmacyLocationCache[shopIdStr] = geoPoint;
-                    debugPrint('📍 Cached location from address for shopId ${shopIdStr}: $lat, $lon');
+                    debugPrint(
+                        '📍 Cached location from address for shopId $shopIdStr: $lat, $lon');
                   }
-                  
+
                   String locationKey = '$lat,$lon';
                   uniqueLocations.add(locationKey);
                   validLocationCount++;
-                  debugPrint('📍 Cached location from address for ${doc.id}: $lat, $lon');
+                  debugPrint(
+                      '📍 Cached location from address for ${doc.id}: $lat, $lon');
                 }
               }
             } catch (e) {
@@ -122,43 +127,45 @@ class PharmacyCacheService {
         } else {
           debugPrint('⚠️ No location field found for pharmacy: ${doc.id}');
           invalidLocationCount++;
-        }        // Handle different shopId formats
+        } // Handle different shopId formats
         if (data['shopId'] != null) {
           final shopIdStr = data['shopId'].toString();
           _pharmacyNameCache[shopIdStr] = name;
-          debugPrint('📝 Cached name for shop ID ${shopIdStr}: ${name}');
-          
+          debugPrint('📝 Cached name for shop ID $shopIdStr: $name');
+
           // Cache location for shopId if available (any format)
           if (data['location'] != null) {
             try {
               // Try to handle both GeoPoint and Map formats
               double lat = 0, lon = 0;
               bool validLocation = false;
-              
+
               if (data['location'] is GeoPoint) {
                 final location = data['location'] as GeoPoint;
                 lat = location.latitude;
                 lon = location.longitude;
                 validLocation = (lat != 0 || lon != 0);
-              } 
-              else if (data['location'] is Map) {
+              } else if (data['location'] is Map) {
                 final locationMap = data['location'] as Map;
-                if (locationMap['latitude'] != null && locationMap['longitude'] != null) {
+                if (locationMap['latitude'] != null &&
+                    locationMap['longitude'] != null) {
                   lat = double.parse(locationMap['latitude'].toString());
                   lon = double.parse(locationMap['longitude'].toString());
                   validLocation = (lat != 0 || lon != 0);
                 }
               }
-              
+
               // If we found valid coordinates, cache them under both document ID and shopId
               if (validLocation) {
                 final geoPoint = GeoPoint(lat, lon);
                 _pharmacyLocationCache[doc.id] = geoPoint;
-                _pharmacyLocationCache[shopIdStr] = geoPoint; // Direct mapping from shopId to location
-                debugPrint('📍 Cached location for shop ID ${shopIdStr}: $lat, $lon');
+                _pharmacyLocationCache[shopIdStr] =
+                    geoPoint; // Direct mapping from shopId to location
+                debugPrint(
+                    '📍 Cached location for shop ID $shopIdStr: $lat, $lon');
               }
             } catch (e) {
-              debugPrint('❌ Error caching location for shop ID ${shopIdStr}: $e');
+              debugPrint('❌ Error caching location for shop ID $shopIdStr: $e');
             }
           }
         }
@@ -167,7 +174,7 @@ class PharmacyCacheService {
         if (data['id'] != null) {
           final idStr = data['id'].toString();
           _pharmacyNameCache[idStr] = name;
-          debugPrint('📝 Cached name for ID field ${idStr}: ${name}');
+          debugPrint('📝 Cached name for ID field $idStr: $name');
 
           if (data['location'] != null) {
             try {
@@ -175,10 +182,10 @@ class PharmacyCacheService {
               if (location.latitude != 0 || location.longitude != 0) {
                 _pharmacyLocationCache[idStr] = location;
                 debugPrint(
-                    '📍 Cached location for ID ${idStr}: ${location.latitude}, ${location.longitude}');
+                    '📍 Cached location for ID $idStr: ${location.latitude}, ${location.longitude}');
               }
             } catch (e) {
-              debugPrint('❌ Error caching location for ID ${idStr}: $e');
+              debugPrint('❌ Error caching location for ID $idStr: $e');
             }
           }
         }
@@ -187,7 +194,7 @@ class PharmacyCacheService {
         final shopIdPattern = RegExp(r'SHOP\d+');
         if (shopIdPattern.hasMatch(doc.id)) {
           _pharmacyNameCache[doc.id] = name;
-          debugPrint('📝 Cached name for SHOP pattern ${doc.id}: ${name}');
+          debugPrint('📝 Cached name for SHOP pattern ${doc.id}: $name');
         }
 
         // Special handling for your specific case
@@ -198,16 +205,15 @@ class PharmacyCacheService {
           _pharmacyNameCache['Shop ID: $shopCode'] =
               name; // Handle the format you showed
           debugPrint(
-              '📝 Cached special SHOP format: ${shopCode} and Shop ID: ${shopCode}');
+              '📝 Cached special SHOP format: $shopCode and Shop ID: $shopCode');
         }
       }
 
       // DIAGNOSTIC: Summarize cache state
       debugPrint('🔬 PHARMACY CACHE SUMMARY:');
-      debugPrint('🔬 Total pharmacies: ${totalPharmacies}');
-      debugPrint('🔬 Pharmacies with valid locations: ${validLocationCount}');
-      debugPrint(
-          '🔬 Pharmacies with invalid locations: ${invalidLocationCount}');
+      debugPrint('🔬 Total pharmacies: $totalPharmacies');
+      debugPrint('🔬 Pharmacies with valid locations: $validLocationCount');
+      debugPrint('🔬 Pharmacies with invalid locations: $invalidLocationCount');
       debugPrint('🔬 Unique locations in cache: ${uniqueLocations.length}');
       debugPrint('🔬 Location cache entries: ${_pharmacyLocationCache.length}');
       debugPrint('🔬 Name cache entries: ${_pharmacyNameCache.length}');
@@ -217,7 +223,7 @@ class PharmacyCacheService {
         debugPrint(
             '⚠️ WARNING: There are duplicate locations in the database!');
         debugPrint(
-            '⚠️ Only ${uniqueLocations.length} unique locations for ${validLocationCount} pharmacies');
+            '⚠️ Only ${uniqueLocations.length} unique locations for $validLocationCount pharmacies');
       }
 
       if (uniqueLocations.length == 1 && validLocationCount > 1) {

@@ -177,29 +177,30 @@ class PharmacyDiagnosticUtil {
         final doc = pharmaciesSnapshot.docs[i];
         final data = doc.data();
         final name = data['name'] ?? 'Unknown';
-        final shopId = data['shopId'] ?? doc.id;          String location = 'No location';
+        final shopId = data['shopId'] ?? doc.id;
+        String location = 'No location';
         if (data['location'] != null) {
           try {
             if (data['location'] is GeoPoint) {
               final loc = data['location'] as GeoPoint;
               location = '${loc.latitude}, ${loc.longitude}';
-            }
-            else if (data['location'] is Map) {
+            } else if (data['location'] is Map) {
               final locationMap = data['location'] as Map;
-              if (locationMap['latitude'] != null && locationMap['longitude'] != null) {
-                location = '${locationMap['latitude']}, ${locationMap['longitude']}';
+              if (locationMap['latitude'] != null &&
+                  locationMap['longitude'] != null) {
+                location =
+                    '${locationMap['latitude']}, ${locationMap['longitude']}';
               } else {
                 location = 'Incomplete map format';
               }
-            }
-            else {
+            } else {
               location = 'Unknown format: ${data['location']}';
             }
           } catch (e) {
             location = 'Invalid location format: $e';
           }
-        } 
-        else if (data['address'] != null && data['address'].toString().contains(',')) {
+        } else if (data['address'] != null &&
+            data['address'].toString().contains(',')) {
           // Check if address contains coordinates
           try {
             final addressStr = data['address'].toString();

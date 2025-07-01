@@ -783,8 +783,9 @@ class _SearchState extends State<Search> {
   }
 
   void _applyFilter() {
-    debugPrint('🔍 Applying filter: $_selectedFilter (ascending: $_isAscendingOrder)');
-    
+    debugPrint(
+        '🔍 Applying filter: $_selectedFilter (ascending: $_isAscendingOrder)');
+
     if (_selectedFilter == 'distance') {
       // For distance, we always want ascending (closest first)
       searchedProducts.sort((a, b) {
@@ -797,11 +798,13 @@ class _SearchState extends State<Search> {
     } else if (_selectedFilter == 'price') {
       searchedProducts.sort((a, b) {
         int compareResult;
-        
+
         // First try to use the numeric PriceValue field
         if (a.containsKey("PriceValue") && b.containsKey("PriceValue")) {
-          compareResult = (a["PriceValue"] as num).compareTo(b["PriceValue"] as num);
-          debugPrint('  Comparing prices: ${a["Name"]} (${a["PriceValue"]}) vs ${b["Name"]} (${b["PriceValue"]}) = $compareResult');
+          compareResult =
+              (a["PriceValue"] as num).compareTo(b["PriceValue"] as num);
+          debugPrint(
+              '  Comparing prices: ${a["Name"]} (${a["PriceValue"]}) vs ${b["Name"]} (${b["PriceValue"]}) = $compareResult');
         } else {
           // Fallback to parsing from the Price string if PriceValue is not available
           double priceA = double.tryParse(
@@ -811,17 +814,20 @@ class _SearchState extends State<Search> {
                   (b["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
               0;
           compareResult = priceA.compareTo(priceB);
-          debugPrint('  Comparing parsed prices: ${a["Name"]} ($priceA) vs ${b["Name"]} ($priceB) = $compareResult');
+          debugPrint(
+              '  Comparing parsed prices: ${a["Name"]} ($priceA) vs ${b["Name"]} ($priceB) = $compareResult');
         }
-        
+
         // Reverse the comparison result if descending order is selected
         return _isAscendingOrder ? compareResult : -compareResult;
       });
-      
+
       // Log the sorted prices for debugging
-      debugPrint('🔍 Sorted by price (${_isAscendingOrder ? 'ascending' : 'descending'}):');
+      debugPrint(
+          '🔍 Sorted by price (${_isAscendingOrder ? 'ascending' : 'descending'}):');
       for (var product in searchedProducts.take(5)) {
-        debugPrint('  ${product["Name"]}: ${product["PriceValue"] ?? product["Price"]}');
+        debugPrint(
+            '  ${product["Name"]}: ${product["PriceValue"] ?? product["Price"]}');
       }
     }
   }
