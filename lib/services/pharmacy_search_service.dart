@@ -2,9 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import '../firebase_database.dart';
+import 'pharmacy_cache_service.dart';
+import 'firebase_debug_util.dart';
 
 class PharmacySearchService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static bool _debugRun = false;
 
   /// Search for medicines from the products collection
   static Future<List<Map<String, dynamic>>> searchNearbyMedicines({
@@ -12,6 +15,15 @@ class PharmacySearchService {
     String? searchQuery,
   }) async {
     try {
+      // Initialize pharmacy cache for better performance
+      await PharmacyCacheService.initializeCache();
+
+      // Run debug once to understand data structure
+      if (!_debugRun) {
+        _debugRun = true;
+        await FirebaseDebugUtil.debugAll();
+      }
+
       debugPrint('🔍 Starting medicine search from products collection');
       debugPrint(
           '🔍 Search query: ${searchQuery ?? "null (getting all products)"}');
@@ -63,7 +75,7 @@ class PharmacySearchService {
 
           // Format product for UI
           final formattedProduct =
-              _formatProductForUI(data, doc.id, userPosition);
+              await _formatProductForUI(data, doc.id, userPosition);
           products.add(formattedProduct);
           debugPrint('  ✅ Added product: ${formattedProduct['Name']}');
         } catch (e) {
@@ -143,8 +155,8 @@ class PharmacySearchService {
   }
 
   /// Format product data for UI display
-  static Map<String, dynamic> _formatProductForUI(
-      Map<String, dynamic> data, String docId, Position userPosition) {
+  static Future<Map<String, dynamic>> _formatProductForUI(
+      Map<String, dynamic> data, String docId, Position userPosition) async {
     // Extract data from the product document
     final name = data['name']?.toString() ?? 'Unknown Product';
     final category = data['category']?.toString() ?? 'Medicine';
@@ -154,6 +166,19 @@ class PharmacySearchService {
     final shopId = data['shopId']?.toString() ?? '';
     final type = data['type']?.toString() ?? 'Public';
     final userEmail = data['userEmail']?.toString() ?? '';
+
+    // Fetch pharmacy name using the cache service
+    String pharmacyName = "Shop ID: $shopId"; // fallback
+
+    debugPrint('🔍 Fetching pharmacy name for shopId: "$shopId"');
+
+    try {
+      pharmacyName = await PharmacyCacheService.getPharmacyName(shopId);
+      debugPrint('✅ Final pharmacy name: $pharmacyName');
+    } catch (e) {
+      debugPrint('❌ Error fetching pharmacy name for shop ID $shopId: $e');
+      // Keep the fallback value
+    }
 
     // For now, use default location since shop locations aren't in the schema
     // You can modify this when shop locations become available
@@ -177,7 +202,7 @@ class PharmacySearchService {
       "Description": "$category - Available in $type pharmacy",
       "Price": "Rs. ${price.toString()}",
       "Quantity": quantity,
-      "StoreName": "Shop ID: $shopId",
+      "StoreName": pharmacyName,
       "StoreLocation": {
         "latitude": defaultLat,
         "longitude": defaultLon,
@@ -273,7 +298,7 @@ class PharmacySearchService {
 
           if (!_isProductExpired(expiryDate) && quantity > 0) {
             final formattedProduct =
-                _formatProductForUI(data, doc.id, userPosition);
+                await _formatProductForUI(data, doc.id, userPosition);
             products.add(formattedProduct);
           }
         } catch (e) {
