@@ -7,6 +7,7 @@ import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/navbar.dart';
 import 'package:healsearch_app/pharmacy_map_screen_fixed.dart';
 import 'package:healsearch_app/services/pharmacy_search_service.dart';
+import 'package:healsearch_app/services/pharmacy_diagnostic_util.dart';
 import 'package:healsearch_app/data.dart';
 import 'package:healsearch_app/login_screen.dart';
 
@@ -71,7 +72,7 @@ class _SearchState extends State<Search> {
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    
+
     // Check authentication before proceeding
     _checkAuthenticationAndInitialize();
   }
@@ -79,9 +80,11 @@ class _SearchState extends State<Search> {
   Future<void> _checkAuthenticationAndInitialize() async {
     final user = FirebaseAuth.instance.currentUser;
     final appDataInstance = AppData();
-    
+
     // Check if user is properly authenticated
-    if (user == null || !appDataInstance.isLoggedIn || appDataInstance.Email == "You are not logged in") {
+    if (user == null ||
+        !appDataInstance.isLoggedIn ||
+        appDataInstance.Email == "You are not logged in") {
       // User is not properly authenticated, redirect to login
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -92,7 +95,7 @@ class _SearchState extends State<Search> {
       });
       return;
     }
-    
+
     // User is authenticated, proceed with initialization
     _initializeWithLocation();
   } // Initialize the app with location first, then fetch products
@@ -103,6 +106,14 @@ class _SearchState extends State<Search> {
     });
 
     try {
+      // Run diagnostics to check pharmacy data before starting
+      try {
+        debugPrint('🔬 Running pharmacy data diagnostics...');
+        await PharmacyDiagnosticUtil.verifyPharmacyData();
+      } catch (diagError) {
+        debugPrint('⚠️ Diagnostic error: $diagError');
+      }
+
       await setLocation();
       await setProducts();
     } catch (e) {

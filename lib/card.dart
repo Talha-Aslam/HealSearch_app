@@ -86,12 +86,58 @@ class CardView extends StatelessWidget {
                 const SizedBox(
                   height: 5,
                 ),
-                Text(
-                  '${productList["StoreName"]}',
-                  style: TextStyle(
-                      color: textColor.withOpacity(0.8),
-                      fontWeight: FontWeight.normal,
-                      fontSize: 16),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.store,
+                      size: 14,
+                      color: textColor.withOpacity(0.7),
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        '${productList["StoreName"]}',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: textColor.withOpacity(0.8),
+                          fontWeight: FontWeight.normal,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    // Distance pill
+                    if (productList["Distance"] != null)
+                      Container(
+                        margin: const EdgeInsets.only(left: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 10,
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              productList["Distance"] == "Unknown"
+                                  ? "Unknown"
+                                  : "${productList["Distance"]} km",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),

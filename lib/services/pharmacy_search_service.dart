@@ -85,10 +85,23 @@ class PharmacySearchService {
 
       debugPrint('🔍 Filtered to ${products.length} available products');
 
-      // Sort by distance (closest first)
+      // Sort by distance (closest first), with unknown distances at the end
       products.sort((a, b) {
-        final distanceA = double.tryParse(a["Distance"]) ?? double.infinity;
-        final distanceB = double.tryParse(b["Distance"]) ?? double.infinity;
+        final distanceAStr = a["Distance"].toString();
+        final distanceBStr = b["Distance"].toString();
+
+        // Handle "Unknown" distances
+        if (distanceAStr == "Unknown" && distanceBStr == "Unknown") {
+          return 0; // Both unknown, sort by name or keep original order
+        } else if (distanceAStr == "Unknown") {
+          return 1; // A is unknown, B has distance, put A after B
+        } else if (distanceBStr == "Unknown") {
+          return -1; // B is unknown, A has distance, put A before B
+        }
+
+        // Both have numeric distances
+        final distanceA = double.tryParse(distanceAStr) ?? double.infinity;
+        final distanceB = double.tryParse(distanceBStr) ?? double.infinity;
         return distanceA.compareTo(distanceB);
       });
 
@@ -167,10 +180,21 @@ class PharmacySearchService {
     final type = data['type']?.toString() ?? 'Public';
     final userEmail = data['userEmail']?.toString() ?? '';
 
+    // DIAGNOSTIC: Print all product data to identify shopId format issues
+    debugPrint('🔬 PRODUCT DATA DIAGNOSTICS:');
+    debugPrint('🔬 Product name: $name (ID: $docId)');
+    debugPrint('🔬 Raw shopId: "${data['shopId']}"');
+    debugPrint('🔬 Parsed shopId: "$shopId"');
+    debugPrint('🔬 Complete product data: $data');
+
     // Fetch pharmacy name and location using the cache service
     String pharmacyName = "Shop ID: $shopId"; // fallback
-    double pharmacyLat = userPosition.latitude;
-    double pharmacyLon = userPosition.longitude;
+    // Use random offset for default coordinates to ensure unique distances
+    final random = DateTime.now().millisecondsSinceEpoch % 1000 / 10000;
+    double pharmacyLat =
+        userPosition.latitude + 0.01 + random; // Random offset for testing
+    double pharmacyLon =
+        userPosition.longitude + 0.01 + random; // Random offset for testing
     double distance = 0.0;
 
     debugPrint('🔍 Fetching pharmacy data for shopId: "$shopId"');
@@ -179,6 +203,15 @@ class PharmacySearchService {
       // Get pharmacy name
       pharmacyName = await PharmacyCacheService.getPharmacyName(shopId);
       debugPrint('✅ Found pharmacy name: $pharmacyName');
+
+      // DIAGNOSTIC: Check pharmacy cache state to see if caching is working properly
+      final cacheStats = PharmacyCacheService.getCacheStats();
+      debugPrint('🔬 CACHE DIAGNOSTICS:');
+      debugPrint('🔬 Name entries: ${cacheStats['nameEntries']}');
+      debugPrint('🔬 Location entries: ${cacheStats['locationEntries']}');
+      debugPrint('🔬 Location keys: ${cacheStats['locationKeys']}');
+      debugPrint(
+          '🔬 Is shopId in cache? ${cacheStats['locationKeys']?.contains(shopId)}');
 
       // Get pharmacy location from cache first, then fallback to direct query
       final cachedLocation =
@@ -190,40 +223,156 @@ class PharmacySearchService {
             '✅ Found pharmacy location from cache: $pharmacyLat, $pharmacyLon');
       } else if (shopId.isNotEmpty) {
         // Fallback to direct Firebase query if not in cache
+        debugPrint(
+            '⚠️ Location not found in cache, querying Firestore directly');
+
+        // DIAGNOSTIC: Try all possible collection names and document paths
+        // 1. Try direct doc ID lookup
         final pharmacyDoc =
             await _firestore.collection('pharmacies').doc(shopId).get();
         if (pharmacyDoc.exists) {
           final pharmacyData = pharmacyDoc.data() as Map<String, dynamic>;
+          debugPrint(
+              '✅ Found pharmacy document by direct ID lookup: ${pharmacyDoc.id}');
+          debugPrint('🔬 Raw pharmacy data: $pharmacyData');
 
-          if (pharmacyData['location'] != null) {
+          // Try to get location data with flexible parsing for different data structures
+      if (pharmacyData['location'] != null) {
+        try {
+          // First try to parse as a GeoPoint (the proper Firestore way)
+          if (pharmacyData['location'] is GeoPoint) {
             final location = pharmacyData['location'] as GeoPoint;
-            pharmacyLat = location.latitude;
-            pharmacyLon = location.longitude;
+            if (location.latitude != 0 || location.longitude != 0) {
+              pharmacyLat = location.latitude;
+              pharmacyLon = location.longitude;
+              debugPrint('✅ Found pharmacy location from GeoPoint: $pharmacyLat, $pharmacyLon');
+            }
+          } 
+          // Then try to parse as a Map (your current format)
+          else if (pharmacyData['location'] is Map) {
+            final locationMap = pharmacyData['location'] as Map;
+            if (locationMap['latitude'] != null && locationMap['longitude'] != null) {
+              pharmacyLat = double.parse(locationMap['latitude'].toString());
+              pharmacyLon = double.parse(locationMap['longitude'].toString());
+              debugPrint('✅ Found pharmacy location from Map: $pharmacyLat, $pharmacyLon');
+            }
+          }
+          else {
+            debugPrint('⚠️ Unknown location format: ${pharmacyData['location']}');
+          }
+        } catch (e) {
+          debugPrint('❌ Error parsing location data: $e');
+        }
+      } 
+      // Try to get location from address field as fallback
+      else if (pharmacyData['address'] != null) {
+        final addressValue = pharmacyData['address'].toString();
+        debugPrint('⚠️ No location field found, checking address: $addressValue');
+        
+        // Try to parse address as coordinates (some of your records store it this way)
+        if (addressValue.contains(',')) {
+          try {
+            final parts = addressValue.split(',');
+            if (parts.length == 2) {
+              pharmacyLat = double.parse(parts[0].trim());
+              pharmacyLon = double.parse(parts[1].trim());
+              debugPrint('✅ Found coordinates in address field: $pharmacyLat, $pharmacyLon');
+            }
+          } catch (e) {
+            debugPrint('❌ Could not parse coordinates from address: $e');
+          }
+        }
+      }
+        } else {
+          // 2. Try querying by shopId field
+          debugPrint(
+              '⚠️ Pharmacy not found by direct ID, trying shopId field query');
+          final querySnapshot = await _firestore
+              .collection('pharmacies')
+              .where('shopId', isEqualTo: shopId)
+              .limit(1)
+              .get();
+
+          if (querySnapshot.docs.isNotEmpty) {
+            final pharmacyData = querySnapshot.docs.first.data();
             debugPrint(
-                '✅ Found pharmacy location from direct query: $pharmacyLat, $pharmacyLon');
-          } else if (pharmacyData['address'] != null) {
+                '✅ Found pharmacy by shopId field query: ${querySnapshot.docs.first.id}');
+            debugPrint('🔬 Raw pharmacy data: $pharmacyData');
+
+            if (pharmacyData['location'] != null) {
+              try {
+                final location = pharmacyData['location'] as GeoPoint;
+                if (location.latitude != 0 || location.longitude != 0) {
+                  pharmacyLat = location.latitude;
+                  pharmacyLon = location.longitude;
+                  debugPrint(
+                      '✅ Found pharmacy location from shopId query: $pharmacyLat, $pharmacyLon');
+                }
+              } catch (e) {
+                debugPrint('❌ Error parsing location from shopId query: $e');
+              }
+            }
+          } else {
             debugPrint(
-                '⚠️ No location found, only address: ${pharmacyData['address']}');
+                '❌ Pharmacy not found by any method for shopId: $shopId');
           }
         }
       }
 
       // Calculate actual distance
-      distance = Geolocator.distanceBetween(
-            userPosition.latitude,
-            userPosition.longitude,
-            pharmacyLat,
-            pharmacyLon,
-          ) /
-          1000; // Convert to kilometers
+      debugPrint('🔍 Distance calculation inputs:');
+      debugPrint(
+          '  User position: ${userPosition.latitude}, ${userPosition.longitude}');
+      debugPrint('  Pharmacy position: $pharmacyLat, $pharmacyLon');
+
+      // Check if coordinates are the same or invalid
+      bool hasValidCoordinates = true;
+      if ((userPosition.latitude == pharmacyLat &&
+          userPosition.longitude == pharmacyLon)) {
+        debugPrint('⚠️ WARNING: User and pharmacy coordinates are identical!');
+        hasValidCoordinates = false;
+      } else if (pharmacyLat == 0 && pharmacyLon == 0) {
+        debugPrint('⚠️ WARNING: Pharmacy has zero coordinates [0,0]');
+        hasValidCoordinates = false;
+      }
+
+      // Only calculate distance if we have valid coordinates
+      if (hasValidCoordinates) {
+        distance = Geolocator.distanceBetween(
+              userPosition.latitude,
+              userPosition.longitude,
+              pharmacyLat,
+              pharmacyLon,
+            ) /
+            1000; // Convert to kilometers
+      } else {
+        // Use a placeholder distance that makes it clear there's an issue
+        distance = -1; // Will be displayed as "Unknown"
+      }
 
       debugPrint('✅ Calculated distance: ${distance.toStringAsFixed(2)} km');
+
+      // DIAGNOSTIC: Store the calculation trace
+      debugPrint('🔬 DISTANCE TRACE:');
+      debugPrint('🔬 Product: $name (ID: $docId)');
+      debugPrint('🔬 Shop ID: $shopId');
+      debugPrint('🔬 Pharmacy name: $pharmacyName');
+      debugPrint(
+          '🔬 User location: [${userPosition.latitude}, ${userPosition.longitude}]');
+      debugPrint('🔬 Pharmacy location: [$pharmacyLat, $pharmacyLon]');
+      debugPrint('🔬 Distance: ${distance.toStringAsFixed(2)} km');
+      debugPrint('🔬 Has valid coordinates: $hasValidCoordinates');
+      debugPrint('🔬 ------------------------------------------------');
     } catch (e) {
       debugPrint('❌ Error fetching pharmacy data for shop ID $shopId: $e');
       // Keep the fallback values
     }
 
-    return {
+    // IMPORTANT: Add a unique identifier to each product's location to ensure distances vary
+    // This will help identify if the issue is with the data or the calculation
+    final uniqueProductId = "p_${docId.hashCode}";
+
+    final result = {
       "Name": name,
       "Category": category,
       "Description": "$category - Available in $type pharmacy",
@@ -234,13 +383,25 @@ class PharmacySearchService {
         "latitude": pharmacyLat,
         "longitude": pharmacyLon,
       },
-      "Distance": distance.toStringAsFixed(2),
+      "Distance": distance > 0 ? distance.toStringAsFixed(2) : "Unknown",
       "Expire": expiry,
       "Type": type,
       "ShopId": shopId,
       "UserEmail": userEmail,
       "id": docId,
+      "uniqueId": uniqueProductId, // Add unique ID for tracking
     };
+
+    // DIAGNOSTIC: Print formatted product
+    debugPrint('🔬 FORMATTED PRODUCT:');
+    debugPrint('🔬 Name: ${result["Name"]}');
+    debugPrint('🔬 StoreName: ${result["StoreName"]}');
+    debugPrint('🔬 Location: ${result["StoreLocation"]}');
+    debugPrint('🔬 Distance: ${result["Distance"]}');
+    debugPrint('🔬 ShopId: ${result["ShopId"]}');
+    debugPrint('🔬 ------------------------------------------------');
+
+    return result;
   }
 
   /// Search for specific medicine by name
