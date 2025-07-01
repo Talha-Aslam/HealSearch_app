@@ -85,14 +85,14 @@ class PharmacySearchService {
 
       debugPrint('🔍 Filtered to ${products.length} available products');
 
-      // Sort by distance if we have location data, otherwise by name
+      // Sort by distance (closest first)
       products.sort((a, b) {
-        // For now, sort by name since we don't have shop location data
-        // You can modify this when shop locations are available
-        return a["Name"].toString().compareTo(b["Name"].toString());
+        final distanceA = double.tryParse(a["Distance"]) ?? double.infinity;
+        final distanceB = double.tryParse(b["Distance"]) ?? double.infinity;
+        return distanceA.compareTo(distanceB);
       });
 
-      debugPrint('🔍 Returning ${products.length} products to UI');
+      debugPrint('🔍 Returning ${products.length} products sorted by distance');
       return products;
     } catch (e) {
       debugPrint('❌ Error in products search: $e');
@@ -167,34 +167,61 @@ class PharmacySearchService {
     final type = data['type']?.toString() ?? 'Public';
     final userEmail = data['userEmail']?.toString() ?? '';
 
-    // Fetch pharmacy name using the cache service
+    // Fetch pharmacy name and location using the cache service
     String pharmacyName = "Shop ID: $shopId"; // fallback
+    double pharmacyLat = userPosition.latitude;
+    double pharmacyLon = userPosition.longitude;
+    double distance = 0.0;
 
-    debugPrint('🔍 Fetching pharmacy name for shopId: "$shopId"');
+    debugPrint('🔍 Fetching pharmacy data for shopId: "$shopId"');
 
     try {
+      // Get pharmacy name
       pharmacyName = await PharmacyCacheService.getPharmacyName(shopId);
-      debugPrint('✅ Final pharmacy name: $pharmacyName');
+      debugPrint('✅ Found pharmacy name: $pharmacyName');
+
+      // Get pharmacy location from cache first, then fallback to direct query
+      final cachedLocation =
+          await PharmacyCacheService.getPharmacyLocation(shopId);
+      if (cachedLocation != null) {
+        pharmacyLat = cachedLocation.latitude;
+        pharmacyLon = cachedLocation.longitude;
+        debugPrint(
+            '✅ Found pharmacy location from cache: $pharmacyLat, $pharmacyLon');
+      } else if (shopId.isNotEmpty) {
+        // Fallback to direct Firebase query if not in cache
+        final pharmacyDoc =
+            await _firestore.collection('pharmacies').doc(shopId).get();
+        if (pharmacyDoc.exists) {
+          final pharmacyData = pharmacyDoc.data() as Map<String, dynamic>;
+
+          if (pharmacyData['location'] != null) {
+            final location = pharmacyData['location'] as GeoPoint;
+            pharmacyLat = location.latitude;
+            pharmacyLon = location.longitude;
+            debugPrint(
+                '✅ Found pharmacy location from direct query: $pharmacyLat, $pharmacyLon');
+          } else if (pharmacyData['address'] != null) {
+            debugPrint(
+                '⚠️ No location found, only address: ${pharmacyData['address']}');
+          }
+        }
+      }
+
+      // Calculate actual distance
+      distance = Geolocator.distanceBetween(
+            userPosition.latitude,
+            userPosition.longitude,
+            pharmacyLat,
+            pharmacyLon,
+          ) /
+          1000; // Convert to kilometers
+
+      debugPrint('✅ Calculated distance: ${distance.toStringAsFixed(2)} km');
     } catch (e) {
-      debugPrint('❌ Error fetching pharmacy name for shop ID $shopId: $e');
-      // Keep the fallback value
+      debugPrint('❌ Error fetching pharmacy data for shop ID $shopId: $e');
+      // Keep the fallback values
     }
-
-    // For now, use default location since shop locations aren't in the schema
-    // You can modify this when shop locations become available
-    final defaultLat =
-        userPosition.latitude + (0.01 * (docId.hashCode % 10 - 5));
-    final defaultLon =
-        userPosition.longitude + (0.01 * (docId.hashCode % 10 - 5));
-
-    // Calculate a mock distance for now
-    final distance = Geolocator.distanceBetween(
-          userPosition.latitude,
-          userPosition.longitude,
-          defaultLat,
-          defaultLon,
-        ) /
-        1000; // Convert to kilometers
 
     return {
       "Name": name,
@@ -204,8 +231,8 @@ class PharmacySearchService {
       "Quantity": quantity,
       "StoreName": pharmacyName,
       "StoreLocation": {
-        "latitude": defaultLat,
-        "longitude": defaultLon,
+        "latitude": pharmacyLat,
+        "longitude": pharmacyLon,
       },
       "Distance": distance.toStringAsFixed(2),
       "Expire": expiry,

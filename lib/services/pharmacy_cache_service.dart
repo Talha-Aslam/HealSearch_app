@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 class PharmacyCacheService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final Map<String, String> _pharmacyNameCache = {};
+  static final Map<String, GeoPoint> _pharmacyLocationCache = {};
   static bool _cacheInitialized = false;
 
   /// Initialize the pharmacy cache by loading all pharmacies
@@ -17,6 +18,7 @@ class PharmacyCacheService {
           await _firestore.collection('pharmacies').get();
 
       _pharmacyNameCache.clear();
+      _pharmacyLocationCache.clear();
 
       for (final doc in pharmaciesSnapshot.docs) {
         final data = doc.data();
@@ -25,14 +27,27 @@ class PharmacyCacheService {
         // Cache with multiple possible keys to handle different formats
         _pharmacyNameCache[doc.id] = name; // Document ID
 
+        // Cache location data if available
+        if (data['location'] != null) {
+          _pharmacyLocationCache[doc.id] = data['location'] as GeoPoint;
+        }
+
         // Handle different shopId formats
         if (data['shopId'] != null) {
           _pharmacyNameCache[data['shopId'].toString()] = name;
+          if (data['location'] != null) {
+            _pharmacyLocationCache[data['shopId'].toString()] =
+                data['location'] as GeoPoint;
+          }
         }
 
         // Handle other possible ID fields
         if (data['id'] != null) {
           _pharmacyNameCache[data['id'].toString()] = name;
+          if (data['location'] != null) {
+            _pharmacyLocationCache[data['id'].toString()] =
+                data['location'] as GeoPoint;
+          }
         }
 
         // Handle specific patterns like SHOP0002 -> Shop ID: SHOP0002
@@ -129,9 +144,46 @@ class PharmacyCacheService {
     return "Shop ID: $shopId";
   }
 
+  /// Get pharmacy location by shop ID
+  static Future<GeoPoint?> getPharmacyLocation(String shopId) async {
+    if (shopId.isEmpty) return null;
+
+    // Ensure cache is initialized
+    await initializeCache();
+
+    // Try cache first
+    if (_pharmacyLocationCache.containsKey(shopId)) {
+      final location = _pharmacyLocationCache[shopId]!;
+      debugPrint(
+          '✅ Found pharmacy location in cache: $shopId -> ${location.latitude}, ${location.longitude}');
+      return location;
+    }
+
+    debugPrint('⚠️ Pharmacy location not found in cache for shopId: $shopId');
+
+    // If not in cache, try direct Firebase query
+    try {
+      final directDoc =
+          await _firestore.collection('pharmacies').doc(shopId).get();
+      if (directDoc.exists && directDoc.data()?['location'] != null) {
+        final location = directDoc.data()?['location'] as GeoPoint;
+        _pharmacyLocationCache[shopId] = location; // Cache for future use
+        debugPrint(
+            '✅ Found pharmacy location via direct lookup: $shopId -> ${location.latitude}, ${location.longitude}');
+        return location;
+      }
+    } catch (e) {
+      debugPrint('❌ Error querying pharmacy location: $e');
+    }
+
+    debugPrint('❌ No location found for shopId: $shopId');
+    return null;
+  }
+
   /// Clear cache (useful for testing or data refresh)
   static void clearCache() {
     _pharmacyNameCache.clear();
+    _pharmacyLocationCache.clear();
     _cacheInitialized = false;
     debugPrint('🗑️ Pharmacy cache cleared');
   }
@@ -140,9 +192,12 @@ class PharmacyCacheService {
   static Map<String, dynamic> getCacheStats() {
     return {
       'initialized': _cacheInitialized,
-      'entries': _pharmacyNameCache.length,
-      'keys': _pharmacyNameCache.keys.toList(),
-      'cache': Map.from(_pharmacyNameCache),
+      'nameEntries': _pharmacyNameCache.length,
+      'locationEntries': _pharmacyLocationCache.length,
+      'nameKeys': _pharmacyNameCache.keys.toList(),
+      'locationKeys': _pharmacyLocationCache.keys.toList(),
+      'nameCache': Map.from(_pharmacyNameCache),
+      'locationCache': Map.from(_pharmacyLocationCache),
     };
   }
 }
