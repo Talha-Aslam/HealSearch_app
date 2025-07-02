@@ -7,7 +7,6 @@ import 'package:healsearch_app/profile.dart';
 import 'package:healsearch_app/contact_us_screen_new.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'screens/pharmacy_debug_screen.dart';
 
 class Navbar extends StatelessWidget {
   const Navbar({super.key});
@@ -120,20 +119,6 @@ class Navbar extends StatelessWidget {
           },
           title: Text(
             'Contact Us',
-            style: TextStyle(
-                color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
-          ),
-        ),
-        ListTile(
-          leading: Icon(Icons.map_outlined, size: 30, color: iconColor),
-          onTap: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (BuildContext context) {
-              return const PharmacyDebugScreen();
-            }));
-          },
-          title: Text(
-            'Distance Verification',
             style: TextStyle(
                 color: textColor, fontWeight: FontWeight.normal, fontSize: 22),
           ),
