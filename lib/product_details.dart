@@ -166,7 +166,7 @@ class _ProductDetailsState extends State<ProductDetails> {
         Padding(
           padding: const EdgeInsets.only(top: 340, left: 268.0),
           child: Text(
-            'Rs. ${widget.product["Price"]}',
+            '${widget.product["Price"]}',
             style: const TextStyle(
                 color: Colors.red, fontWeight: FontWeight.bold, fontSize: 25),
           ),
@@ -287,6 +287,33 @@ class _ProductDetailsState extends State<ProductDetails> {
             size: 20.0,
           ),
         ),
+        // Show distance information
+        Padding(
+          padding: const EdgeInsets.only(top: 625, left: 30.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.location_on,
+                color: Colors.blue,
+                size: 24.0,
+              ),
+              SizedBox(width: 8),
+              Text(
+                product["Distance"] == "Unknown"
+                    ? "Distance: Unknown"
+                    : "Distance: ${product["Distance"]} km",
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Navigation button
         Padding(
           padding: const EdgeInsets.only(top: 660, left: 125.0),
           child: FloatingActionButton.extended(

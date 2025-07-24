@@ -77,7 +77,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           .child('${user.uid}.jpg');
       await storageRef.putFile(imageFile).timeout(const Duration(seconds: 20));
       final url = await storageRef.getDownloadURL();
-      debugPrint('Image uploaded. URL: ' + url);
+      debugPrint('Image uploaded. URL: $url');
       return url;
     } catch (e) {
       debugPrint('Error uploading profile image: $e');

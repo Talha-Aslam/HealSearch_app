@@ -1,13 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/navbar.dart';
 import 'package:healsearch_app/pharmacy_map_screen_fixed.dart';
 import 'package:healsearch_app/pharmacy_shopping_screen.dart';
 import 'package:healsearch_app/services/pharmacy_search_service.dart';
+<<<<<<< HEAD
 import 'package:healsearch_app/Models/cart_item.dart';
+=======
+import 'package:healsearch_app/services/pharmacy_diagnostic_util.dart';
+import 'package:healsearch_app/data.dart';
+import 'package:healsearch_app/login_screen.dart';
+>>>>>>> 57821a0e8d23377841ce4a2e51195446a0302345
 
 // Utility class to prevent multiple snackbars from appearing
 class SnackBarDebouncer {
@@ -57,6 +64,7 @@ class _SearchState extends State<Search> {
   List nearbyProducts = [];
   List searchedProducts = [];
   Timer? _searchTimer;
+<<<<<<< HEAD
 
   // Simple dummy data as fallback when no Firestore data is available
   List<Map<String, dynamic>> _getDummyData() {
@@ -112,12 +120,15 @@ class _SearchState extends State<Search> {
     ];
   }
 
+=======
+>>>>>>> 57821a0e8d23377841ce4a2e51195446a0302345
   late double userlat;
   late double userlon;
   bool status1 = false;
 
   int status = 0;
   String _selectedFilter = 'distance'; // 'distance' or 'price'
+  bool _isAscendingOrder = true; // For ascending/descending sort
   bool _isLoading = true; // Loading state
 
   late GlobalKey<ScaffoldState> _scaffoldKey;
@@ -125,7 +136,31 @@ class _SearchState extends State<Search> {
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    // Initialize the app with location and products
+
+    // Check authentication before proceeding
+    _checkAuthenticationAndInitialize();
+  }
+
+  Future<void> _checkAuthenticationAndInitialize() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final appDataInstance = AppData();
+
+    // Check if user is properly authenticated
+    if (user == null ||
+        !appDataInstance.isLoggedIn ||
+        appDataInstance.Email == "You are not logged in") {
+      // User is not properly authenticated, redirect to login
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const Login()),
+          );
+        }
+      });
+      return;
+    }
+
+    // User is authenticated, proceed with initialization
     _initializeWithLocation();
   } // Initialize the app with location first, then fetch products
 
@@ -135,6 +170,14 @@ class _SearchState extends State<Search> {
     });
 
     try {
+      // Run diagnostics to check pharmacy data before starting
+      try {
+        debugPrint('🔬 Running pharmacy data diagnostics...');
+        await PharmacyDiagnosticUtil.verifyPharmacyData();
+      } catch (diagError) {
+        debugPrint('⚠️ Diagnostic error: $diagError');
+      }
+
       await setLocation();
       await setProducts();
     } catch (e) {
@@ -325,15 +368,14 @@ class _SearchState extends State<Search> {
                                     searchQuery: value.trim(),
                                   );
 
+<<<<<<< HEAD
                                   // If no results from Firestore, filter dummy data locally
+=======
+                                  // If no results from Firestore, show empty results
+>>>>>>> 57821a0e8d23377841ce4a2e51195446a0302345
                                   if (filteredProducts.isEmpty) {
-                                    final dummyData = _getDummyData();
-                                    filteredProducts = dummyData
-                                        .where((element) => element["Name"]
-                                            .toString()
-                                            .toLowerCase()
-                                            .contains(value.toLowerCase()))
-                                        .toList();
+                                    debugPrint(
+                                        'No medicines found matching search: $value');
                                   }
 
                                   setState(() {
@@ -341,9 +383,13 @@ class _SearchState extends State<Search> {
                                     _applyFilter();
                                     _isLoading = false;
                                   });
+
+                                  // Check for expiring medicines in search results
+                                  _checkForExpiringSoonMedicines();
                                 } catch (e) {
                                   debugPrint('Error during search: $e');
 
+<<<<<<< HEAD
                                   // Fall back to local filtering of dummy data
                                   final dummyData = _getDummyData();
                                   final filteredDummyData = dummyData
@@ -353,11 +399,23 @@ class _SearchState extends State<Search> {
                                           .contains(value.toLowerCase()))
                                       .toList();
 
+=======
+                                  // Show error message and empty results
+>>>>>>> 57821a0e8d23377841ce4a2e51195446a0302345
                                   setState(() {
-                                    searchedProducts = filteredDummyData;
+                                    searchedProducts = [];
                                     _applyFilter();
                                     _isLoading = false;
                                   });
+
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            "Error searching medicines: Please try again"),
+                                      ),
+                                    );
+                                  }
                                 }
                               });
                             }
@@ -543,10 +601,33 @@ class _SearchState extends State<Search> {
                         ? Center(
                             child: Padding(
                               padding: const EdgeInsets.only(top: 270.0),
-                              child: Text(
-                                "No medicines found",
-                                style: TextStyle(
-                                    fontSize: 16, color: onBackgroundColor),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 64,
+                                    color: onBackgroundColor.withOpacity(0.5),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    "No medicines found",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: onBackgroundColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "Try searching for a different medicine\nor check your internet connection",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: onBackgroundColor.withOpacity(0.7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           )
@@ -700,15 +781,28 @@ class _SearchState extends State<Search> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Sort Options',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
             ListTile(
               leading: Icon(Icons.location_on,
                   color: _selectedFilter == 'distance'
                       ? Theme.of(context).colorScheme.primary
                       : null),
               title: Text('Sort by Distance'),
+              subtitle: Text('Nearest first'),
               onTap: () {
                 setState(() {
                   _selectedFilter = 'distance';
+                  _isAscendingOrder = true; // Always ascending for distance
                   _applyFilter();
                 });
                 Navigator.pop(context);
@@ -720,19 +814,42 @@ class _SearchState extends State<Search> {
                   .withOpacity(0.2),
             ),
             ListTile(
-              leading: Icon(Icons.attach_money,
-                  color: _selectedFilter == 'price'
+              leading: Icon(Icons.trending_down,
+                  color: _selectedFilter == 'price' && _isAscendingOrder
                       ? Theme.of(context).colorScheme.primary
                       : null),
-              title: Text('Sort by Price'),
+              title: Text('Sort by Price (Low to High)'),
+              subtitle: Text('Cheapest first'),
               onTap: () {
                 setState(() {
                   _selectedFilter = 'price';
+                  _isAscendingOrder = true;
                   _applyFilter();
                 });
                 Navigator.pop(context);
               },
-              selected: _selectedFilter == 'price',
+              selected: _selectedFilter == 'price' && _isAscendingOrder,
+              selectedTileColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withOpacity(0.2),
+            ),
+            ListTile(
+              leading: Icon(Icons.trending_up,
+                  color: _selectedFilter == 'price' && !_isAscendingOrder
+                      ? Theme.of(context).colorScheme.primary
+                      : null),
+              title: Text('Sort by Price (High to Low)'),
+              subtitle: Text('Highest price first'),
+              onTap: () {
+                setState(() {
+                  _selectedFilter = 'price';
+                  _isAscendingOrder = false;
+                  _applyFilter();
+                });
+                Navigator.pop(context);
+              },
+              selected: _selectedFilter == 'price' && !_isAscendingOrder,
               selectedTileColor: Theme.of(context)
                   .colorScheme
                   .primaryContainer
@@ -745,19 +862,52 @@ class _SearchState extends State<Search> {
   }
 
   void _applyFilter() {
+    debugPrint(
+        '🔍 Applying filter: $_selectedFilter (ascending: $_isAscendingOrder)');
+
     if (_selectedFilter == 'distance') {
-      searchedProducts.sort((a, b) => double.parse(a["Distance"] as String)
-          .compareTo(double.parse(b["Distance"] as String)));
+      // For distance, we always want ascending (closest first)
+      searchedProducts.sort((a, b) {
+        if (a["Distance"] == "Unknown" && b["Distance"] == "Unknown") return 0;
+        if (a["Distance"] == "Unknown") return 1; // Unknown distances go last
+        if (b["Distance"] == "Unknown") return -1;
+        return double.parse(a["Distance"] as String)
+            .compareTo(double.parse(b["Distance"] as String));
+      });
     } else if (_selectedFilter == 'price') {
       searchedProducts.sort((a, b) {
-        double priceA = double.tryParse(
-                (a["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
-            0;
-        double priceB = double.tryParse(
-                (b["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
-            0;
-        return priceA.compareTo(priceB);
+        int compareResult;
+
+        // First try to use the numeric PriceValue field
+        if (a.containsKey("PriceValue") && b.containsKey("PriceValue")) {
+          compareResult =
+              (a["PriceValue"] as num).compareTo(b["PriceValue"] as num);
+          debugPrint(
+              '  Comparing prices: ${a["Name"]} (${a["PriceValue"]}) vs ${b["Name"]} (${b["PriceValue"]}) = $compareResult');
+        } else {
+          // Fallback to parsing from the Price string if PriceValue is not available
+          double priceA = double.tryParse(
+                  (a["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
+              0;
+          double priceB = double.tryParse(
+                  (b["Price"] as String).replaceAll(RegExp(r'[^0-9.]'), '')) ??
+              0;
+          compareResult = priceA.compareTo(priceB);
+          debugPrint(
+              '  Comparing parsed prices: ${a["Name"]} ($priceA) vs ${b["Name"]} ($priceB) = $compareResult');
+        }
+
+        // Reverse the comparison result if descending order is selected
+        return _isAscendingOrder ? compareResult : -compareResult;
       });
+
+      // Log the sorted prices for debugging
+      debugPrint(
+          '🔍 Sorted by price (${_isAscendingOrder ? 'ascending' : 'descending'}):');
+      for (var product in searchedProducts.take(5)) {
+        debugPrint(
+            '  ${product["Name"]}: ${product["PriceValue"] ?? product["Price"]}');
+      }
     }
   }
 
@@ -827,9 +977,15 @@ class _SearchState extends State<Search> {
       // If no products found, show a message but don't throw an error
       if (products.isEmpty) {
         debugPrint('No medicines found in nearby pharmacies');
+<<<<<<< HEAD
         // Fall back to dummy data if no real data is found
         products = _getDummyData();
         debugPrint('Using dummy data as fallback: ${products.length} items');
+=======
+        // Show message that no medicines were found
+        debugPrint(
+            'No medicines found in nearby pharmacies - showing empty list');
+>>>>>>> 57821a0e8d23377841ce4a2e51195446a0302345
       }
 
       // Update state to display the products
@@ -838,6 +994,9 @@ class _SearchState extends State<Search> {
           allProducts = products;
           searchedProducts = products;
         });
+
+        // Check for medicines expiring soon and show warning
+        _checkForExpiringSoonMedicines();
       }
     } catch (e) {
       debugPrint('Error loading medicine data: $e');
@@ -847,11 +1006,15 @@ class _SearchState extends State<Search> {
             content: Text("Error loading medicine data: Please try again")));
       }
 
+<<<<<<< HEAD
       // Fall back to dummy data on error
+=======
+      // Show empty results on error
+>>>>>>> 57821a0e8d23377841ce4a2e51195446a0302345
       if (mounted) {
         setState(() {
-          allProducts = _getDummyData();
-          searchedProducts = _getDummyData();
+          allProducts = [];
+          searchedProducts = [];
         });
       }
     }
@@ -883,6 +1046,13 @@ class _SearchState extends State<Search> {
       }
     }
   }
+
+  /// Check for medicines expiring soon (without showing snackbar alerts)
+  void _checkForExpiringSoonMedicines() {
+    // This method is now a no-op to avoid interrupting user experience
+    // The expiry information is still visible in the UI through color coding
+    // and expiry date display in the CardView widgets
+  }
 }
 
 class CardView extends StatelessWidget {
@@ -890,6 +1060,7 @@ class CardView extends StatelessWidget {
 
   const CardView({required this.productList, super.key});
 
+<<<<<<< HEAD
   void _showMedicineOptionsDialog(BuildContext context, Map productList) {
     showDialog(
       context: context,
@@ -1033,6 +1204,154 @@ class CardView extends StatelessWidget {
         ),
       ),
     );
+=======
+  /// Get color for expiry date based on timeframe
+  Color _getExpiryColor(String expiryDate, ThemeData theme) {
+    if (_isExpiringWithinWeek(expiryDate)) {
+      return Colors.red; // Red for urgent (within a week)
+    } else if (_isExpiringSoon(expiryDate)) {
+      return Colors.orange; // Orange for warning (within 3 months)
+    } else {
+      return theme.colorScheme.onSurface.withOpacity(0.6); // Normal color
+    }
+  }
+
+  /// Get font weight for expiry date based on timeframe
+  FontWeight _getExpiryFontWeight(String expiryDate) {
+    if (_isExpiringWithinWeek(expiryDate)) {
+      return FontWeight.bold; // Bold for urgent
+    } else if (_isExpiringSoon(expiryDate)) {
+      return FontWeight.w600; // Semi-bold for warning
+    } else {
+      return FontWeight.normal; // Normal weight
+    }
+  }
+
+  /// Check if expiring within a week (urgent)
+  bool _isExpiringWithinWeek(String expiryDate) {
+    if (expiryDate.isEmpty) return false;
+
+    try {
+      DateTime expiry;
+      final now = DateTime.now();
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return false;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Check if expiring within a week
+      final oneWeekFromNow = DateTime(now.year, now.month, now.day + 7);
+      return expiry.isBefore(oneWeekFromNow) && expiry.isAfter(now);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if a medicine is expiring soon (within 3 months)
+  bool _isExpiringSoon(String expiryDate) {
+    if (expiryDate.isEmpty) return false;
+
+    try {
+      DateTime expiry;
+      final now = DateTime.now();
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return false;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Check if expiring within 3 months
+      final threeMonthsFromNow = DateTime(now.year, now.month + 3, now.day);
+      return expiry.isBefore(threeMonthsFromNow) && expiry.isAfter(now);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Format expiry date for display
+  String _formatExpiryDate(String expiryDate) {
+    if (expiryDate.isEmpty) return 'N/A';
+
+    try {
+      DateTime expiry;
+
+      // Handle different date formats
+      if (expiryDate.contains('/')) {
+        final parts = expiryDate.split('/');
+        if (parts.length == 3) {
+          final year = int.parse(parts[2]);
+          final month = int.parse(parts[1]);
+          final day = int.parse(parts[0]);
+
+          if (month > 12) {
+            expiry = DateTime(year, day, month);
+          } else {
+            expiry = DateTime(year, month, day);
+          }
+        } else {
+          return expiryDate;
+        }
+      } else if (expiryDate.contains('-')) {
+        expiry = DateTime.parse(expiryDate);
+      } else {
+        expiry = DateTime.parse(expiryDate);
+      }
+
+      // Format as "Dec 2025" or "15 Aug 2025" for better readability
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
+      return "${expiry.day} ${months[expiry.month - 1]} ${expiry.year}";
+    } catch (e) {
+      return expiryDate; // Return original if parsing fails
+    }
+>>>>>>> 57821a0e8d23377841ce4a2e51195446a0302345
   }
 
   @override
@@ -1067,11 +1386,43 @@ class CardView extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           maxLines: 1,
         ),
-        subtitle: Text(
-          productList["Description"],
-          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              productList["Description"],
+              style: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            // Add expiry date display
+            if (productList["Expire"] != null &&
+                productList["Expire"].toString().isNotEmpty)
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: _getExpiryColor(
+                        productList["Expire"].toString(), theme),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Expires: ${_formatExpiryDate(productList["Expire"].toString())}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _getExpiryColor(
+                          productList["Expire"].toString(), theme),
+                      fontWeight: _getExpiryFontWeight(
+                          productList["Expire"].toString()),
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
         trailing: Column(
           mainAxisSize: MainAxisSize.min,

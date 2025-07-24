@@ -1,4 +1,8 @@
-# Miscellaneous
+# =============================================================================
+# Flutter/Dart Project .gitignore
+# =============================================================================
+
+# Miscellaneous System Files
 *.class
 *.log
 *.pyc
@@ -11,19 +15,25 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+coverage/
 
-# IntelliJ related
+# IntelliJ/Android Studio
 *.iml
 *.ipr
 *.iws
 .idea/
+.gradle/
+local.properties
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/launch.json
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/.ropeproject
+# Uncomment the next line if you want to exclude all VS Code settings
+# .vscode/
 
-# Flutter/Dart/Pub related
+# Flutter/Dart/Pub Related
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -31,15 +41,168 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+.packages
+build/
+.fvm/
 
-# Symbolication related
+# Flutter Test Coverage
+coverage/
+lcov.info
+
+# Flutter Web Build
+web/canvaskit/
+
+# Generated Files
+*.g.dart
+*.freezed.dart
+*.chopper.dart
+*.config.dart
+*.gr.dart
+*.part.dart
+*.mocks.dart
+
+# Localization
+*.arb
+lib/generated/
+lib/l10n/
+
+# Symbolication Related
 app.*.symbols
 
-# Obfuscation related
+# Obfuscation Related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Firebase
+firebase_app_id_file.json
+.firebase/
+google-services.json
+GoogleService-Info.plist
+firebase-debug.log
+firebase-debug.*.log
+
+# =============================================================================
+# Platform Specific Files
+# =============================================================================
+
+# Android
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.gradle/
+/android/captures/
+/android/gradlew
+/android/gradlew.bat
+/android/local.properties
+/android/**/GeneratedPluginRegistrant.java
+/android/key.properties
+/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+# iOS
+/ios/Flutter/.last_build_id
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/app.flx
+/ios/Flutter/app.zip
+/ios/Flutter/flutter_assets/
+/ios/Flutter/flutter_export_environment.sh
+/ios/ServiceDefinitions.json
+/ios/Runner/GeneratedPluginRegistrant.*
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/ephemeral/
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+
+# macOS
+/macos/Flutter/GeneratedPluginRegistrant.swift
+/macos/Flutter/ephemeral/
+/macos/Pods/
+
+# Linux
+/linux/flutter/generated_plugin_registrant.cc
+/linux/flutter/generated_plugin_registrant.h
+/linux/flutter/generated_plugins.cmake
+
+# Windows
+/windows/flutter/generated_plugin_registrant.cc
+/windows/flutter/generated_plugin_registrant.h
+/windows/flutter/generated_plugins.cmake
+
+# Web
+/web/favicon.png
+/web/icons/Icon-192.png
+/web/icons/Icon-512.png
+/web/icons/Icon-maskable-192.png
+/web/icons/Icon-maskable-512.png
+/web/manifest.json
+
+# =============================================================================
+# Development & Debug Files
+# =============================================================================
+
+# Debug Files
+*.dSYM/
+*.xcarchive
+
+# Environment Variables
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# API Keys and Secrets (be extra careful with these)
+api_keys.dart
+secrets.dart
+keys/
+certificates/
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log Files
+logs/
+*.log
+
+# Temporary Files
+tmp/
+temp/
+.tmp/
+
+# Flutter Driver Integration Tests
+test_driver/app.dart.snapshot
+
+# =============================================================================
+# CI/CD & Deployment
+# =============================================================================
+
+# Fastlane
+/fastlane/report.xml
+/fastlane/Preview.html
+/fastlane/screenshots
+/fastlane/test_output
+
+# Release Files
+release/
+*.apk
+*.ipa
+*.aab
+
+# Crashlytics
+crashlytics-build.properties
+
+# =============================================================================
+# Optional: Comment out if you want to track these
+# =============================================================================
+
+# Generated Plugin Registrants (if you customize them)
+# **/GeneratedPluginRegistrant.*
+
+# Analysis Options (if you want project-specific rules)
+# analysis_options.yaml
+
+# Pubspec Lock (uncomment if you want consistent dependencies across team)
+# pubspec.lock

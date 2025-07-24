@@ -6,7 +6,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:healsearch_app/splash_screen.dart';
+import 'package:healsearch_app/app_state_manager.dart';
+import 'package:healsearch_app/services/pharmacy_diagnostic_util.dart';
 import 'firebase_options.dart';
 import 'dart:isolate';
 import 'dart:async';
@@ -195,6 +196,19 @@ void main() async {
   // Initialize services with error catching
   try {
     await _initializeServices();
+
+    // Run diagnostic util for main function
+    try {
+      // Run diagnostics after a short delay to ensure Firebase is fully initialized
+      debugPrint('🔍 Running pharmacy data diagnostics on startup...');
+      await Future.delayed(
+          const Duration(seconds: 2)); // Wait for Firebase to initialize fully
+
+      // Run the diagnostic utility
+      await PharmacyDiagnosticUtil.verifyPharmacyData();
+    } catch (diagError) {
+      debugPrint('⚠️ Diagnostic initialization error: $diagError');
+    }
   } catch (e) {
     debugPrint('Error during service initialization: $e');
     // Continue app startup despite errors
@@ -317,7 +331,7 @@ class MyApp extends StatelessWidget {
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
       ),
-      home: const Splash(),
+      home: const AppStateManager(),
     );
   }
 }

@@ -28,19 +28,65 @@ class _ChatScreenState extends State<ChatScreen> {
   final FocusNode _focusNode =
       FocusNode(); // Added FocusNode to manage keyboard focus
 
-  // --- Define the Initial Doctor Persona Prompt ---
-  // !! CRITICAL: Include comprehensive disclaimers !!
+  // --- User-facing welcome message ---
   static const String initialDoctorPrompt = """
-  👩‍⚕️ **Welcome to your friendly Medical Assistant!**
+👩‍⚕️ **Welcome to your AI Medical Assistant!**
 
-I’m an AI built to guide you with basic health suggestions based on the symptoms you describe. I can explain possible causes and recommend **common over-the-counter (OTC) medicines** for **mild, everyday issues** like headaches, colds, or stomach discomfort.
+I'm here to help you understand your symptoms and provide practical medical guidance. I can:
 
-I’m here to support you — but please remember:
-🩺 This is **not a replacement for a real doctor**.
-🚨 If your symptoms are serious, unusual, or don’t go away, **always consult a qualified healthcare professional**.
+✅ **Recommend specific over-the-counter medicines** for common conditions
+✅ **Explain possible causes** of your symptoms  
+✅ **Provide care tips and precautions** for faster recovery
+✅ **Tell you when to seek professional help**
 
-You can start by telling me how you're feeling, and I'll do my best to help. 😊
-  """;
+Just describe how you're feeling, and I'll give you structured medical suggestions with clear recommendations for medicines, causes, and care tips.
+
+**Important:** While I provide helpful medical guidance, always consult a healthcare professional for serious, persistent, or unusual symptoms.
+
+What symptoms would you like help with today? 🩺""";
+
+  // --- System instructions for AI (not shown to user) ---
+  static const String aiSystemInstructions = """
+SYSTEM INSTRUCTIONS FOR AI MEDICAL ASSISTANT:
+
+You are a professional medical AI assistant in a health guidance app. Your role is to provide helpful, structured medical suggestions for common symptoms while maintaining appropriate medical disclaimers.
+
+CORE BEHAVIOR:
+- You MUST provide specific over-the-counter medicine recommendations for common symptoms
+- You should offer practical medical guidance, not just tell users to see a doctor
+- Balance helpfulness with safety - provide actionable advice with appropriate warnings
+- Use the exact response format specified below
+
+RESPONSE RULES:
+1. For CLEAR symptoms (headache, fever, cold, stomach pain, etc.): Provide full structured response
+2. For VAGUE symptoms: Ask 2-3 clarifying questions first
+3. Always use the professional headings and format below
+
+REQUIRED RESPONSE FORMAT for clear symptoms:
+
+💊 **Recommended Medicines**
+- List specific OTC medicines with exact dosages (e.g., "Paracetamol 500mg every 6 hours")
+- Include both generic and common brand names
+- Specify forms (tablets, syrup, drops, etc.)
+- Give 2-3 medicine options when possible
+
+🔍 **Possible Causes**
+- List 2-3 most likely medical causes
+- Explain each cause clearly and simply
+- Mention common triggers or risk factors
+
+⚠️ **Precautions & Care Tips**
+- Safety warnings for the recommended medicines
+- Home care tips and remedies
+- Things to avoid (food, activities, etc.)
+- Proper timing and dosage instructions
+
+🏥 **When to See a Doctor**
+- Specific warning signs that require immediate medical care
+- Timeline for improvement expectations
+- What information to provide to healthcare professionals
+
+IMPORTANT: You must provide practical medical suggestions. Do NOT refuse to recommend common OTC medicines for typical symptoms. Include standard medical disclaimer but focus on being helpful.""";
   // --- End of Prompt ---
   @override
   void initState() {
@@ -70,23 +116,63 @@ You can start by telling me how you're feeling, and I'll do my best to help. �
     _model = genai.GenerativeModel(
       model: 'gemini-1.5-flash-latest', // Or 'gemini-pro-vision'
       apiKey: geminiApiKey,
-      // You might want to adjust safety settings for medical context if possible,
-      // but rely heavily on the prompt disclaimer.
-      // safetySettings: [ ... ],
+      // Adjust safety settings for medical context - allow helpful medical advice
+      safetySettings: [
+        genai.SafetySetting(
+          genai.HarmCategory.harassment,
+          genai.HarmBlockThreshold.medium,
+        ),
+        genai.SafetySetting(
+          genai.HarmCategory.hateSpeech,
+          genai.HarmBlockThreshold.medium,
+        ),
+        genai.SafetySetting(
+          genai.HarmCategory.sexuallyExplicit,
+          genai.HarmBlockThreshold.medium,
+        ),
+        genai.SafetySetting(
+          genai.HarmCategory.dangerousContent,
+          genai.HarmBlockThreshold.medium,
+        ),
+      ],
       generationConfig: genai.GenerationConfig(
-          // Adjust temperature for more factual/less creative responses if needed
-          // temperature: 0.5,
-          ),
+        temperature: 0.7, // Balanced creativity for helpful responses
+        topP: 0.9,
+        topK: 40,
+        maxOutputTokens: 1000,
+      ),
     );
 
-    // --- Start the chat session with the initial "doctor" context ---
+    // --- Start the chat session with the system instructions ---
     _chat = _model.startChat(
       history: [
-        // Provide the persona prompt as the initial message from the 'model'.
-        // This sets the context for the entire conversation.
-        genai.Content.model([genai.TextPart(initialDoctorPrompt)])
-        // Optional: You could add a dummy user message like Content.text("Hello")
-        // if needed, but usually the model prompt is enough.
+        // System instructions to set AI behavior
+        genai.Content.model([genai.TextPart(aiSystemInstructions)]),
+        // Example exchange to reinforce helpful behavior
+        genai.Content.text("I have a headache. Can you help?"),
+        genai.Content.model([
+          genai.TextPart("""💊 **Recommended Medicines**
+- Paracetamol 500mg every 6 hours (max 4 doses per day)
+- Ibuprofen 400mg every 8 hours with food
+- Aspirin 300-600mg every 4-6 hours
+
+🔍 **Possible Causes**
+- Tension or stress headache
+- Dehydration
+- Eye strain from screens
+
+⚠️ **Precautions & Care Tips**
+- Stay hydrated - drink plenty of water
+- Rest in a quiet, dark room
+- Apply cold compress to forehead
+
+🏥 **When to See a Doctor**
+- Severe, sudden headache unlike any before
+- Headache with fever, stiff neck, or confusion
+- No improvement after 2-3 days
+
+*Always follow medicine package instructions and consult a pharmacist if unsure.*""")
+        ]),
       ],
     );
 
@@ -970,8 +1056,7 @@ You can start by telling me how you're feeling, and I'll do my best to help. �
       }
 
       if (text.isNotEmpty) {
-        parts.add(genai.TextPart(
-            "You are a friendly AI medical advisor in an educational app. When the user tells you their symptoms, explain the **possible cause** in simple words, then suggest common **over-the-counter (OTC) medicines** that might help. Be short, clear, and helpful. Example:\n\nInput: I have a headache and fever\nOutput: This could be due to a viral infection. You may take Paracetamol or Panadol. Stay hydrated and rest.\n\nNow respond to:\n$text"));
+        parts.add(genai.TextPart(text));
       }
 
       final content = genai.Content.multi(parts);

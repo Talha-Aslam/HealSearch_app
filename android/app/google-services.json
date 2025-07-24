@@ -58,6 +58,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "269639114847-fov0su2rj3heaicrln4g4ksa1k0uh2vo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.healsearch_app",
+            "certificate_hash": "7dfcf23fa95c34ccb71b237283dd6463d8b444bd"
+          }
+        },
+        {
           "client_id": "269639114847-m4paohbm1e40ghqnva4jb6gc6e43dfa5.apps.googleusercontent.com",
           "client_type": 3
         }
