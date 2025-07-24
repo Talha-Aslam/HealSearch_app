@@ -5,7 +5,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:healsearch_app/firebase_database.dart';
 import 'package:healsearch_app/navbar.dart';
 import 'package:healsearch_app/pharmacy_map_screen_fixed.dart';
+import 'package:healsearch_app/pharmacy_shopping_screen.dart';
 import 'package:healsearch_app/services/pharmacy_search_service.dart';
+import 'package:healsearch_app/Models/cart_item.dart';
 
 // Utility class to prevent multiple snackbars from appearing
 class SnackBarDebouncer {
@@ -60,7 +62,7 @@ class _SearchState extends State<Search> {
   List<Map<String, dynamic>> _getDummyData() {
     final defaultLat = 31.5204; // Lahore coordinates as default
     final defaultLon = 74.3587;
-    
+
     return [
       {
         "Name": "Paracetamol 500mg",
@@ -295,7 +297,7 @@ class _SearchState extends State<Search> {
                         onChanged: (value) {
                           // Cancel previous search timer if it exists
                           _searchTimer?.cancel();
-                          
+
                           // Real-time search using Firestore with debouncing
                           if (status == 0) {
                             if (value.trim().isEmpty) {
@@ -306,19 +308,23 @@ class _SearchState extends State<Search> {
                               });
                             } else {
                               // Debounce the search to avoid too many API calls
-                              _searchTimer = Timer(const Duration(milliseconds: 500), () async {
+                              _searchTimer = Timer(
+                                  const Duration(milliseconds: 500), () async {
                                 setState(() {
                                   _isLoading = true;
                                 });
-                                
+
                                 try {
                                   // Search for medicines with the query
-                                  var position = await Flutter_api().getPosition();
-                                  var filteredProducts = await PharmacySearchService.searchNearbyMedicines(
+                                  var position =
+                                      await Flutter_api().getPosition();
+                                  var filteredProducts =
+                                      await PharmacySearchService
+                                          .searchNearbyMedicines(
                                     userPosition: position,
                                     searchQuery: value.trim(),
                                   );
-                                  
+
                                   // If no results from Firestore, filter dummy data locally
                                   if (filteredProducts.isEmpty) {
                                     final dummyData = _getDummyData();
@@ -329,7 +335,7 @@ class _SearchState extends State<Search> {
                                             .contains(value.toLowerCase()))
                                         .toList();
                                   }
-                                  
+
                                   setState(() {
                                     searchedProducts = filteredProducts;
                                     _applyFilter();
@@ -337,7 +343,7 @@ class _SearchState extends State<Search> {
                                   });
                                 } catch (e) {
                                   debugPrint('Error during search: $e');
-                                  
+
                                   // Fall back to local filtering of dummy data
                                   final dummyData = _getDummyData();
                                   final filteredDummyData = dummyData
@@ -346,7 +352,7 @@ class _SearchState extends State<Search> {
                                           .toLowerCase()
                                           .contains(value.toLowerCase()))
                                       .toList();
-                                  
+
                                   setState(() {
                                     searchedProducts = filteredDummyData;
                                     _applyFilter();
@@ -807,22 +813,22 @@ class _SearchState extends State<Search> {
     try {
       // Get user position
       var position = await Flutter_api().getPosition();
-      
+
       debugPrint('User position: ${position.latitude}, ${position.longitude}');
-      
+
       // Search for nearby medicines using Firestore
       var products = await PharmacySearchService.searchNearbyMedicines(
         userPosition: position,
         searchQuery: null, // Get all medicines initially
       );
-      
+
       debugPrint('Found ${products.length} medicines from Firestore');
-      
+
       // If no products found, show a message but don't throw an error
       if (products.isEmpty) {
         debugPrint('No medicines found in nearby pharmacies');
         // Fall back to dummy data if no real data is found
-        products = _getDummyData(); 
+        products = _getDummyData();
         debugPrint('Using dummy data as fallback: ${products.length} items');
       }
 
@@ -835,12 +841,12 @@ class _SearchState extends State<Search> {
       }
     } catch (e) {
       debugPrint('Error loading medicine data: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("Error loading medicine data: Please try again")));
       }
-      
+
       // Fall back to dummy data on error
       if (mounted) {
         setState(() {
@@ -883,6 +889,151 @@ class CardView extends StatelessWidget {
   final Map productList;
 
   const CardView({required this.productList, super.key});
+
+  void _showMedicineOptionsDialog(BuildContext context, Map productList) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.medication,
+                  color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  productList["Name"],
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                productList["Description"],
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.local_pharmacy, size: 16, color: Colors.blue[600]),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      productList["StoreName"],
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 16, color: Colors.red[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    "${productList["Distance"]} km away",
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.attach_money, size: 16, color: Colors.green[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    productList["Price"],
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _showLocation(context, productList);
+              },
+              icon: const Icon(Icons.location_on),
+              label: const Text('Show Location'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _buyMedicine(context, productList);
+              },
+              icon: const Icon(Icons.shopping_cart),
+              label: const Text('Buy'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showLocation(BuildContext context, Map productList) {
+    final storeLocation = productList["StoreLocation"] as Map<String, dynamic>;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PharmacyMapScreen(
+          pharmacyName: productList["StoreName"],
+          latitude: storeLocation["latitude"],
+          longitude: storeLocation["longitude"],
+          medicineName: productList["Name"],
+          medicinePrice: productList["Price"],
+          medicineQuantity: productList["Quantity"]?.toString() ?? "N/A",
+        ),
+      ),
+    );
+  }
+
+  void _buyMedicine(BuildContext context, Map productList) {
+    // Create cart item from the selected medicine
+    final cartItem = CartItem.fromMap(Map<String, dynamic>.from(productList));
+
+    // Get pharmacy location
+    final storeLocation = productList["StoreLocation"] as Map<String, dynamic>;
+
+    // Navigate to pharmacy shopping screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PharmacyShoppingScreen(
+          pharmacyName: productList["StoreName"],
+          initialItem: cartItem,
+          pharmacyLatitude: storeLocation["latitude"],
+          pharmacyLongitude: storeLocation["longitude"],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -961,22 +1112,7 @@ class CardView extends StatelessWidget {
           ],
         ),
         onTap: () {
-          // Navigate to pharmacy location on map
-          final storeLocation =
-              productList["StoreLocation"] as Map<String, dynamic>;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PharmacyMapScreen(
-                pharmacyName: productList["StoreName"],
-                latitude: storeLocation["latitude"],
-                longitude: storeLocation["longitude"],
-                medicineName: productList["Name"],
-                medicinePrice: productList["Price"],
-                medicineQuantity: productList["Quantity"]?.toString() ?? "N/A",
-              ),
-            ),
-          );
+          _showMedicineOptionsDialog(context, productList);
         },
       ),
     );

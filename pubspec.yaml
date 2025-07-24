@@ -64,6 +64,7 @@ dependencies:
   animated_floating_buttons: ^0.0.2
   flutter_awesome_buttons: ^1.1.0
   flutter_switch: ^0.3.2
+  provider: ^6.1.2
   
   # Mobile services
   email_otp: ^3.0.2
